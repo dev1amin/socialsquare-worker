@@ -15,6 +15,7 @@ import { KeywordAgent } from './agents/keyword.agent.js';
 import { BrandAdapterAgent } from './agents/brandAdapter.agent.js';
 import { CTAValidatorAgent } from './agents/ctaValidator.agent.js';
 import { DescriptionAgent } from './agents/description.agent.js';
+import { ResearchAgent } from './agents/research.agent.js';
 
 /**
  * Orchestrator para geração de carrossel Instagram
@@ -53,6 +54,7 @@ export class InstagramCarouselOrchestrator {
         this.brandAdapter = new BrandAdapterAgent(tokenTracker);
         this.ctaValidator = new CTAValidatorAgent(tokenTracker);
         this.descriptionAgent = new DescriptionAgent(tokenTracker);
+        this.researchAgent = new ResearchAgent(this.traceId);
     }
 
     /**
@@ -337,7 +339,40 @@ export class InstagramCarouselOrchestrator {
                     });
                 });
             }
-            
+
+            // Fonte 4: Pesquisa prévia com fontes confiáveis (Tavily — best-effort)
+            let researchResult = null;
+            try {
+                // Tópico da pesquisa: usa userContext; se vazio, usa primeira caption ou nome do negócio
+                const firstCaption = allRocketData[0]?.data?.metadata?.caption || allRocketData[0]?.data?.caption || '';
+                const researchTopic = (userContext && userContext.trim())
+                    || (firstCaption ? firstCaption.substring(0, 200) : '')
+                    || (brandData?.objective || brandData?.name || '');
+
+                if (researchTopic) {
+                    const shortCtx = [brandData?.name, brandData?.objective, brandData?.target_audience]
+                        .filter(Boolean)
+                        .join(' | ');
+                    researchResult = await this.researchAgent.run({
+                        topic: researchTopic,
+                        businessContext: shortCtx,
+                        maxResults: 5,
+                    });
+                    if (researchResult?.summary) {
+                        combinedSources.push({
+                            type: 'research',
+                            provider: researchResult.provider,
+                            content: researchResult.summary,
+                        });
+                        logger.info(`[${this.traceId}] ResearchAgent: ${researchResult.sources.length} fontes adicionadas ao combinedSources`);
+                    }
+                } else {
+                    logger.info(`[${this.traceId}] ResearchAgent: sem tópico para pesquisar, pulando`);
+                }
+            } catch (err) {
+                logger.warn(`[${this.traceId}] ResearchAgent falhou (ignorando): ${err.message}`);
+            }
+
             logger.info(`[${this.traceId}] Combined ${combinedSources.length} content sources for generation`);
             if (combinedSources.length > 0) {
                 logger.debug(`[${this.traceId}] Sources: ${combinedSources.map(s => `${s.type}${s.code ? ':' + s.code : ''}(${s.content?.length || 0} chars)`).join(', ')}`);
@@ -495,7 +530,8 @@ export class InstagramCarouselOrchestrator {
                 input,
                 userId,
                 businessId,
-                instagramCodes
+                instagramCodes,
+                researchResult
             );
 
             logger.info(`[${this.traceId}] Generation completed successfully (${adaptedSlides.length} slides, ${instagramCodes.length} source(s))`);
@@ -516,7 +552,7 @@ export class InstagramCarouselOrchestrator {
      * ⚠️ UNSPLASH COMPLIANCE: Inclui atribuições completas para cada imagem
      * ⚠️ MÚLTIPLAS FONTES: Inclui informação de todas as fontes no metadata
      */
-    buildFinalResult(slides, description, blueprint, allRocketData, brandData, input, userId, businessId, allCodes) {
+    buildFinalResult(slides, description, blueprint, allRocketData, brandData, input, userId, businessId, allCodes, researchResult) {
         // Normalizar allRocketData para trabalhar tanto com array quanto com objeto único
         const rocketDataArray = Array.isArray(allRocketData) ? 
             allRocketData.map(item => item?.data || item) : 
@@ -538,6 +574,13 @@ export class InstagramCarouselOrchestrator {
                 multifont,
                 sources: multifont ? allCodes : [input.code]
             },
+            // Fontes externas (Tavily) usadas como research — separadas das fontes Instagram
+            sources: (researchResult?.sources || []).slice(0, 8).map((s) => ({
+                title: s.title,
+                url: s.url,
+                snippet: (s.content || '').substring(0, 240),
+                publishedDate: s.publishedDate,
+            })),
             conteudos: slides.map(slide => ({
                 title: slide.title,
                 subtitle: slide.subtitle || null,
@@ -566,6 +609,8 @@ export class InstagramCarouselOrchestrator {
                     primary_code: input.code,
                     additional_codes: input.multiple_links || [],
                     all_codes: allCodes,
+                    research_provider: researchResult?.provider || 'none',
+                    research_sources_count: researchResult?.sources?.length || 0,
                     instagram_data: allRocketData.map((item, idx) => {
                         const data = Array.isArray(allRocketData) ? item.data : item;
                         const code = Array.isArray(allRocketData) ? item.code : (allCodes?.[idx] || 'unknown');
