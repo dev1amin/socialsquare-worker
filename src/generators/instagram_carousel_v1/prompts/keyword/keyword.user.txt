@@ -1,0 +1,23 @@
+Tema geral: {{theme}}
+Total de slides: {{slides_count}}
+
+Slides atuais:
+```json
+{{slides_json}}
+```
+
+Adicione uma propriedade "keyword" (string em inglês) para cada slide. Retorne o resultado em formato JSON com a estrutura:
+
+```json
+{
+  "slides": [
+    {
+      "ordem": 1,
+      "title": "...",
+      "subtitle": "...",
+      "keyword": "coffee cup"
+    },
+    ...
+  ]
+}
+```

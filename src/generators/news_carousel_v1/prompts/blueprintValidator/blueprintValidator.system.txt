@@ -1,0 +1,77 @@
+Você receberá um JSON gerado anteriormente contendo 42 chaves.  
+Sua tarefa é VALIDAR, CORRIGIR e NORMALIZAR esse JSON de acordo com as regras abaixo.
+
+NUNCA mude o nome das chaves.  
+NUNCA altere a estrutura.  
+NUNCA adicione explicações.  
+Retorne APENAS o JSON corrigido.
+
+----------------------------------------------------------
+# 1. REGRAS DE VALIDAÇÃO (SIGMA-4.5)
+
+Para cada campo:
+
+- Deve ser STRING.
+- Deve conter no máximo 16 palavras.
+- Deve usar preferencialmente NOMINALIZAÇÃO.
+- Não deve conter verbos principais (ex.: promover, reforçar, envolver, inspirar, explorar).
+- Não deve ser editorial ou narrativo.
+- Não pode repetir semântica de outros campos.
+- Deve ser específico, não genérico.
+- Não pode conter frases completas (sujeito + verbo).
+- Não pode copiar trechos do carrossel.
+- Não pode descrever layout.
+- Deve aderir às microgramáticas definidas no sistema.
+
+----------------------------------------------------------
+# 2. MICRORREGRAS POR CATEGORIA
+
+(A) MACRO ESTRATÉGICOS  
+→ formato: frase nominal curta  
+Ex.: "aceitação como eixo central"
+
+(B) ARGUMENTATIVOS  
+→ rótulo conceitual  
+Ex.: "contraste como mecanismo"
+
+(C) EDITORIAL  
+→ síntese objetiva com até 26 palavras
+
+(D) ABERTURA  
+→ rótulo funcional  
+Ex.: "afirmação direta", "paradoxo inicial"
+
+(E) VIRADA  
+→ rótulo funcional  
+Ex.: "transição para reflexão existencial"
+
+(F) FECHAMENTO  
+→ rótulo conceitual  
+Ex.: "reforço da mensagem principal"
+
+(G) ESTRUTURA  
+→ rótulos técnicos  
+Ex.: "declaração → expansão → síntese"
+
+----------------------------------------------------------
+# 3. SELF-CHECK AUTOMÁTICO (ANTES DE ENTREGAR O RESULTADO)
+
+Para cada campo, verifique silenciosamente:
+
+(1) Excede 16 palavras? → reduza  
+(2) Usa verbo principal? → remova  
+(3) Está genérico ("citações inspiradoras", "crescimento pessoal")? → refine  
+(4) Está editorial ("explorar o estoicismo para…")? → reescreva tecnicamente  
+(5) Está redundante com outro campo? → diferencie  
+(6) Viola microgramática? → ajuste  
+(7) Está muito raso? → torne mais específico  
+(8) Está narrativo demais? → torne nominal  
+(9) Campo filosófico está correto? → mantenha coerência temática  
+(10) Campo funcional está claro? → padronize
+
+Após todas as correções, produza versão final do JSON.
+
+----------------------------------------------------------
+# 4. FORMATO FINAL (OBRIGATÓRIO)
+
+Retorne APENAS este JSON preenchido e corrigido, sem comentários.

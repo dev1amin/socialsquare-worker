@@ -1,0 +1,8 @@
+Gere o slide de CTA com base nas informações abaixo.
+
+TEMA CENTRAL DA NOTÍCIA: {{topic}}
+TIPO DE CTA: {{cta_type}}
+INTENÇÃO DO CTA: {{cta_intention}}
+
+Retorne JSON:
+{"title": "...", "subtitle": "..."}

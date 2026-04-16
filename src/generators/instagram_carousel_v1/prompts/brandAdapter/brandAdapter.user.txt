@@ -1,0 +1,33 @@
+Slides originais (JSON):
+{{slides_json}}
+
+Brand positioning:
+{{brand_positioning}}
+
+Voice tone:
+{{voice_tone}}
+
+Target audience:
+{{target_audience}}
+
+Forbidden words:
+{{forbidden_words}}
+
+Preferred words:
+{{preferred_words}}
+
+Forbidden topics:
+{{forbidden_topics}}
+
+Objective:
+{{objective}}
+
+Contexto adicional:
+{{context}}
+
+Tarefa:
+Reescreva os slides mantendo estrutura e tamanho aproximado,
+adaptando linguagem, exemplos e keywords ao posicionamento da marca,
+ao público e ao contexto informado.
+
+Retorne apenas o JSON final.

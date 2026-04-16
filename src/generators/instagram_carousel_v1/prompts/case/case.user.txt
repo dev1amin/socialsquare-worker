@@ -1,0 +1,16 @@
+Texto original:
+{{original_text}}
+
+Contexto:
+{{context}}
+
+Template:
+{{template_json}}
+
+Máscara de subtitles:
+{{slides_mask}}
+
+Quantidade obrigatória de slides:
+{{screen_count}}
+
+Retorne SOMENTE o array JSON dentro de "slides".

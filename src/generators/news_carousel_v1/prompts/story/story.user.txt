@@ -1,0 +1,33 @@
+Gere um novo carrossel no formato de HISTÓRIA ANCORADA,
+utilizando obrigatoriamente:
+
+- O BLUEPRINT como guia narrativo e base factual
+- O contexto fornecido pelo usuário
+- A estrutura, ritmo e máscara do Template
+
+A história deve:
+- Explicitar os mesmos pontos do conteúdo original
+- Usar narrativa apenas como recurso de exemplificação
+- Deixar claro, em ao menos um slide, que a história ilustra o tema
+
+BLUEPRINT (42 CHAVES NARRATIVAS):
+{{blueprint_json}}
+
+CONTEXTO:
+{{context}}
+
+TEXTO ORIGINAL DA NOTÍCIA (referência para fidelidade aos fatos):
+{{news_text}}
+
+TEMPLATE DE REFERÊNCIA (estrutura, ritmo e máscara):
+{{template_json}}
+
+Máscara de subtitles (true = slide tem subtitle, false = não tem):
+{{slides_mask}}
+
+Quantidade obrigatória de slides:
+{{screen_count}}
+
+IMPORTANTE: Preserve os fatos, dados e eventos da notícia original. A narrativa é o veículo, os fatos são invioláveis.
+
+Retorne SOMENTE o array JSON dentro de "slides".

@@ -1,0 +1,21 @@
+Blueprint:
+{{blueprint_json}}
+
+Fonte original (post/notícia/link — base factual):
+{{original_text}}
+
+Contexto/instrução do usuário:
+{{context}}
+
+Template:
+{{template_json}}
+
+Máscara de subtitles:
+{{slides_mask}}
+
+Quantidade obrigatória de slides:
+{{screen_count}}
+
+IMPORTANTE: A progressão educacional deve ensinar o que a fonte original relata. Preserve dados e fatos.
+
+Retorne SOMENTE o array JSON dentro de "slides".

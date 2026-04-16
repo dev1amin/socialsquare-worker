@@ -1,0 +1,197 @@
+Você receberá o HTML de uma notícia.
+
+Cada notícia contém:
+- Título, subtítulo, corpo do texto
+- Informações sobre o evento/fato descrito
+
+O HTML é APENAS referência temática.  
+Seu objetivo NÃO é reescrever a notícia.  
+Seu objetivo é ANALISAR semanticamente o conteúdo e gerar um BLUEPRINT NARRATIVO ESTRATÉGICO.
+
+---
+
+# 1. REGRAS GERAIS (Sigma-4.5)
+
+- O output deve ser um JSON PLANO contendo EXATAMENTE as 42 chaves listadas abaixo.
+- Todos os valores devem ser STRINGS.
+- Não gere arrays, listas, objetos aninhados ou texto fora do JSON.
+- Máximo de 16 palavras por campo.
+- Sem emojis.
+- Sem metáforas literárias.
+- Sem frases completas com sujeito + verbo; prefira NOMINALIZAÇÕES.
+- O conteúdo deve ser descritivo, objetivo, técnico.
+- Nunca copie frases da notícia.
+- Nunca descreva layout.
+- Nunca adicione campos extras.
+
+---
+
+# 2. MICROGRAMÁTICAS (Regras por categoria)
+
+Você DEVE obedecer o formato linguístico de cada grupo.
+
+### (A) MACRO ESTRATÉGICOS  
+**Formato:** frase nominal curta (sem verbo principal).
+
+- tema_central → assunto principal em 3–6 palavras.  
+- mensagem_principal → insight central em até 10 palavras.  
+- estrutura_narrativa → "X → Y → Z" sem verbos.  
+- intencao_emocional → 1 emoção.  
+- objetivo_do_conteudo → função estratégica em 1–3 palavras.  
+- tom_de_voz → atributo tonal em 1–2 palavras.  
+- padrao_de_progressao → padrão evolutivo em até 12 palavras.
+
+### (B) MACRO ARGUMENTATIVOS  
+**Formato:** rótulo conceitual ou frase ultra-curta.
+
+- angulo_dominante → perspectiva dominante.  
+- tese_argumentativa → afirmação conceitual em até 10 palavras.  
+- mecanismo_retorico → ferramenta de persuasão (ex.: contraste, autoridade).  
+- ritmo_narrativo → lento, médio, rápido, crescente.  
+- prova_emocional → tipo de validação (ex.: autoridade histórica).  
+- driver_psicologico → gatilho emocional principal.  
+- arquetipo_do_narrador → 1 palavra.  
+- contraponto_implicito → ideia não desejada combatida.  
+- tensao_central → oposição conceitual.  
+- promessa_transformacional → efeito final prometido.  
+- registro_semantico → campo lexical.  
+- intensidade_do_tom → baixa, média, alta.
+
+### (C) EDITORIAL  
+**Formato:** micro-parágrafo objetivo de até 26 palavras.
+
+- resumo_editorial_final → síntese clara, objetiva, sem adornos.
+
+### (D) ABERTURA (GANCHO)  
+**Formato:** rótulos funcionais.
+
+- gancho_de_abertura → tipo do estímulo inicial.  
+- natureza_do_gancho → pergunta, paradoxo, afirmação, provocação.  
+- efeito_cognitivo_inicial → reação mental.  
+- intencao_da_abertura → motivação funcional.  
+- expectativa_criada → suposição projetada no leitor.  
+- estilo_de_linguagem_do_gancho → técnico, filosófico, direto etc.
+
+### (E) VIRADA  
+**Formato:** rótulo funcional.
+
+- ponto_de_virada → mudança de enquadramento.  
+- natureza_da_virada → racional, filosófica, emocional.  
+- efeito_da_virada → impacto cognitivo.  
+- finalidade_da_virada → função estratégica.
+
+### (F) FECHAMENTO  
+**Formato:** etiqueta conceitual.
+
+- intencao_de_fechamento → objetivo final.  
+- efeito_emocional_final → sentimento resultante.  
+- movimento_narrativo_completado → forma compacta: "X → Y".
+
+### (G) ESTRUTURA  
+**Formato:** rótulo objetivo e curto.
+
+- arquitetura_funcional → engenharia narrativa.  
+- nivel_de_abstracao → concreto, médio, abstrato.  
+- estilo_de_frases → curto, médio, longo.  
+- subtexto_central → implicação dominante.  
+- tipo_de_consciencia_despertada → reflexão, urgência, clareza.  
+- publico_implicito → 1–3 palavras.  
+- grau_de_diretividade → baixo, médio, alto.  
+- movimento_interno → mudança psicológica breve.  
+- mecanismo_de_retencao → técnica de retenção.
+
+---
+
+# 3. EXEMPLOS NEGATIVOS (NÃO PODE)
+
+Você deve EVITAR outputs semelhantes a:
+
+- "Frases completas com sujeito + verbo."
+- "Citações filosóficas."
+- "Metáforas poéticas."
+- "Descrições longas."
+- "Análises interpretativas demais."
+- "Termos vagos como 'profunda introspecção'."
+
+---
+
+# 4. EXEMPLOS POSITIVOS (PODE)
+
+Formato ideal:
+
+- "aceitação como eixo central"
+- "tensão entre controle e destino"
+- "contraste como mecanismo retórico"
+- "movimento: dúvida → clareza"
+- "registro semântico: filosófico"
+- "gancho: afirmação direta"
+- "virada: mudança para reflexão existencial"
+
+---
+
+# 5. SELF-CHECK OBRIGATÓRIO (antes de entregar)
+
+O modelo deve validar:
+
+1. Algum campo excede 16 palavras? → reduzir.  
+2. Algum campo usa verbo principal? → reescrever em nominalização.  
+3. Algum campo é genérico demais? → especificar.  
+4. Algum campo replica outros? → diferenciar.  
+5. Algum campo está editorializado? → tornar técnico.  
+6. JSON segue exatamente 42 chaves? → corrigir.  
+7. Algum campo copia a notícia? → reescrever.  
+
+Se algum erro for detectado: **corrigir silenciosamente**.
+
+---
+
+# 6. FORMATO FINAL (OBRIGATÓRIO)
+
+Sua resposta deve ser SOMENTE este JSON preenchido:
+
+{
+  "tema_central": "",
+  "mensagem_principal": "",
+  "estrutura_narrativa": "",
+  "intencao_emocional": "",
+  "objetivo_do_conteudo": "",
+  "tom_de_voz": "",
+  "padrao_de_progressao": "",
+  "angulo_dominante": "",
+  "tese_argumentativa": "",
+  "mecanismo_retorico": "",
+  "ritmo_narrativo": "",
+  "prova_emocional": "",
+  "driver_psicologico": "",
+  "arquetipo_do_narrador": "",
+  "contraponto_implicito": "",
+  "tensao_central": "",
+  "promessa_transformacional": "",
+  "registro_semantico": "",
+  "intensidade_do_tom": "",
+  "resumo_editorial_final": "",
+  "gancho_de_abertura": "",
+  "natureza_do_gancho": "",
+  "efeito_cognitivo_inicial": "",
+  "intencao_da_abertura": "",
+  "expectativa_criada": "",
+  "estilo_de_linguagem_do_gancho": "",
+  "ponto_de_virada": "",
+  "natureza_da_virada": "",
+  "efeito_da_virada": "",
+  "finalidade_da_virada": "",
+  "intencao_de_fechamento": "",
+  "efeito_emocional_final": "",
+  "movimento_narrativo_completado": "",
+  "arquitetura_funcional": "",
+  "nivel_de_abstracao": "",
+  "estilo_de_frases": "",
+  "subtexto_central": "",
+  "tipo_de_consciencia_despertada": "",
+  "publico_implicito": "",
+  "grau_de_diretividade": "",
+  "movimento_interno": "",
+  "mecanismo_de_retencao": ""
+}
+
+Retorne exclusivamente o JSON preenchido, sem comentários adicionais.

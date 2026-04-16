@@ -1,0 +1,31 @@
+=== FONTES DE CONTEÚDO (USE TODAS) ===
+
+{{original_text}}
+
+=== CONTEXTO/INSTRUÇÕES DO USUÁRIO ===
+
+{{context}}
+
+=== TEMPLATE DE REFERÊNCIA ===
+
+{{template_json}}
+
+=== CONFIGURAÇÃO ===
+
+Máscara de subtitles: {{slides_mask}}
+
+⚠️ QUANTIDADE OBRIGATÓRIA DE SLIDES: {{screen_count}}
+
+IMPORTANTE: Você DEVE gerar EXATAMENTE {{screen_count}} slides. Nem mais, nem menos.
+
+Se houver múltiplas fontes no texto original (separadas por "---"), distribua o conteúdo de TODAS as fontes ao longo dos {{screen_count}} slides.
+
+=== FORMATO DE RESPOSTA ===
+
+Retorne um JSON com a seguinte estrutura:
+{
+  "slides": [
+    {"title": "...", "subtitle": "..."},
+    ... (total de {{screen_count}} objetos)
+  ]
+}

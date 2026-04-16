@@ -1,0 +1,32 @@
+Gere um novo carrossel do tipo PRODUTO utilizando obrigatoriamente:
+
+- O BLUEPRINT como guia narrativo e base factual
+- O contexto fornecido pelo usuário
+- A estrutura, ritmo e máscara do Template
+
+O carrossel deve:
+- Ter o produto como protagonista
+- Usar prova, lógica e sistema para justificar valor
+- Conduzir explicitamente a um CTA no encerramento
+
+BLUEPRINT (42 CHAVES NARRATIVAS):
+{{blueprint_json}}
+
+CONTEXTO:
+{{context}}
+
+TEXTO ORIGINAL DA NOTÍCIA (referência para fidelidade aos fatos):
+{{news_text}}
+
+TEMPLATE DE REFERÊNCIA (estrutura, ritmo e máscara):
+{{template_json}}
+
+Máscara de subtitles (true = slide tem subtitle, false = não tem):
+{{slides_mask}}
+
+Quantidade obrigatória de slides:
+{{screen_count}}
+
+IMPORTANTE: Preserve os fatos, dados e eventos da notícia original. O produto é o protagonista, mas os fatos da notícia são invioláveis.
+
+Retorne SOMENTE o array JSON dentro de "slides".

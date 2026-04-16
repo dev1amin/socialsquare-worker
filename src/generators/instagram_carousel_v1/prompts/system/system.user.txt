@@ -1,0 +1,21 @@
+Blueprint:
+{{blueprint_json}}
+
+Fonte original (post/notícia/link — base factual):
+{{original_text}}
+
+Contexto/instrução do usuário:
+{{context}}
+
+Template:
+{{template_json}}
+
+Máscara de subtitles:
+{{slides_mask}}
+
+Quantidade obrigatória de slides:
+{{screen_count}}
+
+IMPORTANTE: O carrossel deve contar os mesmos fatos, dados e eventos da fonte original, com estilo viral. Não invente informações.
+
+Retorne SOMENTE o array JSON dentro de "slides".

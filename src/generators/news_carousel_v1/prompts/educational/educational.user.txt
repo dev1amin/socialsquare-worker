@@ -1,0 +1,29 @@
+Transforme o BLUEPRINT abaixo em um CARROSSEL EDUCACIONAL.
+
+Siga rigorosamente:
+- o System Prompt EDUCACIONAL v3.1
+- a estrutura e máscara do Template
+- o número exato de slides
+- a progressão cognitiva (cada slide deve acrescentar algo novo)
+
+BLUEPRINT:
+{{blueprint_json}}
+
+CONTEXTO:
+{{context}}
+
+TEXTO ORIGINAL DA NOTÍCIA (referência para fidelidade aos fatos):
+{{news_text}}
+
+TEMPLATE DE REFERÊNCIA (estrutura, ritmo e máscara):
+{{template_json}}
+
+Máscara de subtitles (true = slide tem subtitle, false = não tem):
+{{slides_mask}}
+
+Quantidade de slides obrigatória:
+{{screen_count}}
+
+IMPORTANTE: Preserve os fatos, dados e eventos da notícia original. A progressão educacional deve ensinar o que a notícia relata.
+
+Retorne SOMENTE o array JSON dentro de "slides".

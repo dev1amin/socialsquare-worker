@@ -1,0 +1,44 @@
+{
+    "generator_version": "instagram_carousel_v1",
+    "content_id": 123,
+    "template": "8",
+    "dimension": "1170x1560",
+    "screen_count": 10,
+    "slides": [
+        {
+            "index": 1,
+            "title": "Título do Slide 1",
+            "body": "Corpo do texto do slide 1...",
+            "cta": null
+        },
+        {
+            "index": 2,
+            "title": "Título do Slide 2",
+            "body": "Corpo do texto do slide 2...",
+            "cta": null
+        },
+        {
+            "index": 10,
+            "title": "Título Final",
+            "body": "Conclusão...",
+            "cta": "Siga para mais conteúdo!"
+        }
+    ],
+    "caption": "Caption do post para Instagram (150-200 chars)",
+    "hashtags": [
+        "hashtag1",
+        "hashtag2",
+        "hashtag3"
+    ],
+    "sources": {
+        "rocket": {
+            "code": "DSHyK_IjvmS",
+            "content_url": "https://instagram.com/p/DSHyK_IjvmS/"
+        }
+    },
+    "metadata": {
+        "generated_at": "2025-12-26T10:30:00.000Z",
+        "user_id": 42,
+        "business_id": 7
+    }
+}

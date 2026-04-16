@@ -1,0 +1,2 @@
+# CTA Validator não usa prompts
+# Ele apenas valida programaticamente se existe CTA no último slide

@@ -1,0 +1,36 @@
+Slides do carrossel (JSON):
+{{slides}}
+
+Brand positioning:
+{{brand_positioning}}
+
+Voice tone:
+{{voice_tone}}
+
+Target audience:
+{{target_audience}}
+
+Forbidden words:
+{{forbidden_words}}
+
+Preferred words:
+{{preferred_words}}
+
+Forbidden topics:
+{{forbidden_topics}}
+
+Objective:
+{{objective}}
+
+Comprimento da descrição:
+{{description_length}}
+
+Contexto adicional:
+{{context}}
+
+Tarefa:
+Gere uma descrição para o carrossel com base EXCLUSIVA
+no conteúdo dos slides, alinhando linguagem, tom e foco
+ao posicionamento da marca, público e objetivo informados.
+
+Retorne apenas o texto final da descrição.

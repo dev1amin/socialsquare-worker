@@ -1,0 +1,22 @@
+Transforme o BLUEPRINT abaixo no template mencionado anteriormente:
+
+BLUEPRINT:
+{{blueprint_json}}
+
+CONTEXTO:
+{{context}}
+
+TEXTO ORIGINAL DA NOTÍCIA (use como referência para manter fidelidade aos fatos):
+{{news_text}}
+
+TEMPLATE DE REFERÊNCIA (estrutura, ritmo e máscara):
+{{template_json}}
+
+Máscara de subtitles (true = slide tem subtitle, false = não tem):
+{{slides_mask}}
+
+Quantidade de objetos = {{screen_count}} (nem mais, nem menos).
+
+IMPORTANTE: O carrossel deve contar a mesma história da notícia, preservando dados, fatos e números. Adapte apenas o estilo para ser viral e engajante.
+
+Retorne o JSON dentro de "slides".
