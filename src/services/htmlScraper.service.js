@@ -66,7 +66,7 @@ export class HtmlScraperService {
         // Remove comentários HTML
         clean = clean.replace(/<!--[\s\S]*?-->/g, '');
 
-        // Remove tags img e a (imagens e links) conforme n8n
+        // Remove tags img e a (imagens e links)
         clean = clean.replace(/<img[^>]*>/gi, '');
         clean = clean.replace(/<a\b[^>]*>(.*?)<\/a>/gi, '$1');
 

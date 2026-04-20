@@ -19,7 +19,7 @@ import { ResearchAgent } from './agents/research.agent.js';
 
 /**
  * Orchestrator para geração de carrossel Instagram
- * Pipeline completo baseado no fluxo n8n:
+ * Pipeline completo de geração de carrossel a partir de URL/Instagram:
  * 1. Busca dados do job/template/brand do banco
  * 2. RocketAPI → busca post(s) do Instagram (suporta múltiplos)
  * 3. ImageAnalyzer → OCR + descrição visual (GPT-4O Vision)
@@ -547,7 +547,7 @@ export class InstagramCarouselOrchestrator {
 
     /**
      * Monta resultado final no schema padronizado
-     * Segue formato do n8n
+     * Formato padronizado do resultado
      * 
      * ⚠️ UNSPLASH COMPLIANCE: Inclui atribuições completas para cada imagem
      * ⚠️ MÚLTIPLAS FONTES: Inclui informação de todas as fontes no metadata

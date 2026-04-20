@@ -9,7 +9,7 @@ class VideoFrameExtractorService {
     constructor() {
         this.apiUrl = process.env.VIDEO_EXTRACT_API_URL || 'http://apivftomc_template_raid-evolvingai:8000/extract-video';
 
-        // Parâmetros fixos (mesmos do n8n)
+        // Parâmetros fixos
         this.fixedParams = {
             description: 'bla',
             profileImageUrl: 'https://i.postimg.cc/CLJZBvtD/logoo-2.png',

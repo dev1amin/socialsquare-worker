@@ -57,7 +57,7 @@ export class RocketAPIClient {
                 throw new Error(`No items found for shortcode ${shortcode}`);
             }
 
-            // Extrai slides (lógica do n8n)
+            // Extrai slides
             const rawSlides = [];
 
             for (const item of body.items) {
