@@ -14,6 +14,7 @@ import { KeywordAgent } from './agents/keyword.agent.js';
 import { BrandAdapterAgent } from './agents/brandAdapter.agent.js';
 import { CTAValidatorAgent } from './agents/ctaValidator.agent.js';
 import { DescriptionAgent } from './agents/description.agent.js';
+import { trackUsage } from '../../services/pricingTracker.service.js';
 
 /**
  * Orchestrator para geração de carrossel News
@@ -101,6 +102,8 @@ export class NewsCarouselOrchestrator {
             const userId = job.user_id;
             const businessId = job.business_id;
             const contentId = job.content_id;
+            this.userId = userId;
+            this.businessId = businessId;
 
             const multifont = input.multifont === true;
             logger.info(`[${this.traceId}] Job loaded: content_type=${input.content_type}, has_context=${!!input.context}, has_cta=${!!input.has_cta}, multifont=${multifont}`);
@@ -147,6 +150,15 @@ export class NewsCarouselOrchestrator {
                 logger.info(`[${this.traceId}] Business has no logo — fetching profile pic for @${brandData.instagram}`);
                 try {
                     const userProfile = await rocketApiClient.getUserProfile(brandData.instagram);
+                    trackUsage({
+                        jobId: this.jobId,
+                        userId: this.userId,
+                        businessId: this.businessId,
+                        provider: 'rocketapi',
+                        operation: 'instagram.get_user_profile',
+                        units: 1,
+                        metadata: { username: brandData.instagram },
+                    });
                     if (userProfile?.profile_pic_url) {
                         const { error } = await supabase
                             .schema('carousel')
@@ -240,6 +252,18 @@ export class NewsCarouselOrchestrator {
                         slidesForUnsplash = await googleImagesService.addGoogleImages(slidesWithKeywords);
                         const googleCount = slidesForUnsplash.filter(s => s._googleImageUsed).length;
                         logger.info(`[${this.traceId}] Google Images used for ${googleCount} slides`);
+                        const queries = slidesWithKeywords.filter(s => s.google_keyword).length;
+                        if (queries > 0) {
+                            trackUsage({
+                                jobId: this.jobId,
+                                userId: this.userId,
+                                businessId: this.businessId,
+                                provider: 'google_images',
+                                operation: 'customsearch',
+                                units: queries,
+                                metadata: { used: googleCount },
+                            });
+                        }
                     }
                 }
             } catch (err) {

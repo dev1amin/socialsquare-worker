@@ -8,6 +8,7 @@ import { NewsCarouselOrchestrator } from '../generators/news_carousel_v1/orchest
 import { cacheService } from '../services/cache.service.js';
 import { tempfs } from '../services/tempfs.service.js';
 import { createTokenTracker } from '../services/tokenTracker.service.js';
+import { flushTokenTracker } from '../services/pricingTracker.service.js';
 import { isRetryableError } from './utils/backoff.js';
 
 const connection = createRedisConnection();
@@ -77,6 +78,14 @@ const processJob = async (job) => {
 
         // 8. Salva resultado e marca como completed
         await completeJob(job_id, result, null, tokenTracker.getMetrics());
+
+        // 8.1. Pricing: flush dos tokens OpenAI por agent para provider_usage (best-effort)
+        await flushTokenTracker({
+            jobId: job_id,
+            userId: jobData.user_id,
+            businessId: jobData.business_id,
+            tokenTracker,
+        });
 
         // 9. Invalida cache
         await cacheService.invalidateAll(job_id, jobData.user_id, jobData.business_id);

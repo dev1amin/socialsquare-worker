@@ -16,6 +16,7 @@ import { BrandAdapterAgent } from './agents/brandAdapter.agent.js';
 import { CTAValidatorAgent } from './agents/ctaValidator.agent.js';
 import { DescriptionAgent } from './agents/description.agent.js';
 import { ResearchAgent } from './agents/research.agent.js';
+import { trackUsage } from '../../services/pricingTracker.service.js';
 
 /**
  * Orchestrator para geração de carrossel Instagram
@@ -71,6 +72,15 @@ export class InstagramCarouselOrchestrator {
                 allData.push({
                     code,
                     data: rocketData
+                });
+                trackUsage({
+                    jobId: this.jobId,
+                    userId: this.userId,
+                    businessId: this.businessId,
+                    provider: 'rocketapi',
+                    operation: 'instagram.get_carousel_by_code',
+                    units: 1,
+                    metadata: { code },
                 });
                 logger.info(`[${this.traceId}] Successfully fetched data for code: ${code}`);
             } catch (error) {
@@ -146,6 +156,8 @@ export class InstagramCarouselOrchestrator {
             const userId = job.user_id;
             const businessId = job.business_id;
             const contentId = job.content_id;
+            this.userId = userId;
+            this.businessId = businessId;
 
             const multifont = input.multifont === true;
             
@@ -230,6 +242,15 @@ export class InstagramCarouselOrchestrator {
                     logger.info(`[${this.traceId}] Fetching Instagram data via RocketAPI (code: ${instagramCodes[0]})...`);
                     const rocketData = await rocketApiClient.getCarouselByCode(instagramCodes[0]);
                     allRocketData = [{ code: instagramCodes[0], data: rocketData }];
+                    trackUsage({
+                        jobId: this.jobId,
+                        userId: this.userId,
+                        businessId: this.businessId,
+                        provider: 'rocketapi',
+                        operation: 'instagram.get_carousel_by_code',
+                        units: 1,
+                        metadata: { code: instagramCodes[0] },
+                    });
                 }
             } else {
                 logger.info(`[${this.traceId}] No Instagram codes available, skipping RocketAPI fetch`);
@@ -240,6 +261,15 @@ export class InstagramCarouselOrchestrator {
                 logger.info(`[${this.traceId}] Business has no logo — fetching profile pic for @${brandData.instagram}`);
                 try {
                     const userProfile = await rocketApiClient.getUserProfile(brandData.instagram);
+                    trackUsage({
+                        jobId: this.jobId,
+                        userId: this.userId,
+                        businessId: this.businessId,
+                        provider: 'rocketapi',
+                        operation: 'instagram.get_user_profile',
+                        units: 1,
+                        metadata: { username: brandData.instagram },
+                    });
                     if (userProfile?.profile_pic_url) {
                         const { error } = await supabase
                             .schema('carousel')
@@ -358,6 +388,17 @@ export class InstagramCarouselOrchestrator {
                         businessContext: shortCtx,
                         maxResults: 5,
                     });
+                    if (researchResult?.provider === 'tavily') {
+                        trackUsage({
+                            jobId: this.jobId,
+                            userId: this.userId,
+                            businessId: this.businessId,
+                            provider: 'tavily',
+                            operation: 'search',
+                            units: 1,
+                            metadata: { sources: researchResult.sources?.length || 0 },
+                        });
+                    }
                     if (researchResult?.summary) {
                         combinedSources.push({
                             type: 'research',
@@ -465,6 +506,18 @@ export class InstagramCarouselOrchestrator {
                         slidesForUnsplash = await googleImagesService.addGoogleImages(slidesWithKeywords);
                         const googleCount = slidesForUnsplash.filter(s => s._googleImageUsed).length;
                         logger.info(`[${this.traceId}] Google Images used for ${googleCount} slides`);
+                        const queries = slidesWithKeywords.filter(s => s.google_keyword).length;
+                        if (queries > 0) {
+                            trackUsage({
+                                jobId: this.jobId,
+                                userId: this.userId,
+                                businessId: this.businessId,
+                                provider: 'google_images',
+                                operation: 'customsearch',
+                                units: queries,
+                                metadata: { used: googleCount },
+                            });
+                        }
                     }
                 }
             } catch (err) {
