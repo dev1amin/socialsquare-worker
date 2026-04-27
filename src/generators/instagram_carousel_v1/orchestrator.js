@@ -524,6 +524,39 @@ export class InstagramCarouselOrchestrator {
                 logger.warn(`[${this.traceId}] Google Images failed, continuing with Unsplash: ${err.message}`);
             }
 
+            // ETAPA 11.7: Tavily Images - busca imagens de PESSOAS (Unsplash performa mal para isso)
+            try {
+                const { isPersonKeyword, searchPersonImages } = await import('../../../services/tavily-images.service.js');
+                const personSlides = slidesForUnsplash
+                    .map((s, idx) => ({ s, idx }))
+                    .filter(({ s }) => !s._googleImageUsed && isPersonKeyword(s.keyword));
+
+                if (personSlides.length > 0) {
+                    logger.info(`[${this.traceId}] Fetching Tavily images for ${personSlides.length} person slides...`);
+                    const results = await Promise.all(
+                        personSlides.map(({ s }) => searchPersonImages(s.keyword))
+                    );
+                    let tavilyUsed = 0;
+                    personSlides.forEach(({ idx }, i) => {
+                        const r = results[i];
+                        if (r?.imagem_fundo) {
+                            slidesForUnsplash[idx] = {
+                                ...slidesForUnsplash[idx],
+                                imagem_fundo: r.imagem_fundo,
+                                imagem_fundo2: r.imagem_fundo2,
+                                imagem_fundo3: r.imagem_fundo3,
+                                tavily_attributions: r.tavily_attributions,
+                                _tavilyImageUsed: true,
+                            };
+                            tavilyUsed++;
+                        }
+                    });
+                    logger.info(`[${this.traceId}] Tavily images used for ${tavilyUsed}/${personSlides.length} person slides`);
+                }
+            } catch (err) {
+                logger.warn(`[${this.traceId}] Tavily images step failed, falling back to Unsplash: ${err.message}`);
+            }
+
             // ETAPA 12: Unsplash - busca imagens de fundo (usa frames extraídos para slides de vídeo)
             logger.info(`[${this.traceId}] Fetching background images from Unsplash...`);
             const slidesWithImages = await unsplashService.addBackgroundImages(slidesForUnsplash, extractedFrames);

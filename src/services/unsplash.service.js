@@ -333,6 +333,10 @@ export class UnsplashService {
                 if (slide._googleImageUsed) {
                     logger.debug(`[unsplash] Slide ${i + 1} already has Google Image - skipping Unsplash`);
                     slidesWithImages.push(slide);
+                } else if (slide._tavilyImageUsed) {
+                    // Pula slides que já têm imagem da Tavily (pessoas)
+                    logger.debug(`[unsplash] Slide ${i + 1} already has Tavily Image - skipping Unsplash`);
+                    slidesWithImages.push(slide);
                 } else {
                     // Busca no Unsplash
                     const images = await this.searchImages(slide.keyword);
