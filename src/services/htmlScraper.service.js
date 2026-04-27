@@ -52,6 +52,41 @@ export class HtmlScraperService {
     }
 
     /**
+     * Faz scraping de uma URL e retorna o HTML bruto SEM limpeza.
+     * Útil para extração de imagens (og:image, <img> inline) antes da limpeza.
+     * @param {string} url - URL da notícia
+     * @returns {Promise<string>} HTML bruto
+     */
+    async scrapeRaw(url) {
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    'authority': new URL(url).hostname,
+                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'accept-language': 'en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7',
+                    'cache-control': 'no-cache',
+                    'pragma': 'no-cache',
+                    'sec-ch-ua': '"Google Chrome";v="134", "Chromium";v="134", "Not:A-Brand";v="24"',
+                    'sec-ch-ua-mobile': '?0',
+                    'sec-ch-ua-platform': '"Linux"',
+                    'sec-fetch-dest': 'document',
+                    'sec-fetch-mode': 'navigate',
+                    'sec-fetch-site': 'none',
+                    'sec-fetch-user': '?1',
+                    'upgrade-insecure-requests': '1',
+                    'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36'
+                },
+                timeout: 15000
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            return await response.text();
+        } catch (error) {
+            logger.warn(`[html-scraper] scrapeRaw failed for ${url}: ${error.message}`);
+            return '';
+        }
+    }
+
+    /**
      * Limpa HTML removendo scripts, styles e tags desnecessárias
      * @param {string} html - HTML bruto
      * @returns {string} HTML limpo

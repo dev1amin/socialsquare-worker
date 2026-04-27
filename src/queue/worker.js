@@ -151,10 +151,16 @@ worker.on('stalled', (jobId) => {
     logger.warn(`⚠️ Job ${jobId} stalled`);
 });
 
+const BUILD_COMMIT = process.env.COMMIT_SHA || 'dev';
+const BUILD_VERSION = process.env.BUILD_VERSION || 'unknown';
 logger.info(`🚀 Worker started`);
 logger.info(`   Queue: ${config.queue.name}`);
 logger.info(`   Concurrency: ${config.queue.concurrency}`);
 logger.info(`   Attempts: ${config.queue.attempts}`);
+logger.info(`   Build: ${BUILD_VERSION} (${BUILD_COMMIT})`);
+logger.info(`   Image pipeline: v3 (article+tavily+unsplash)`);
+logger.info(`   TAVILY_API_KEY present: ${!!process.env.TAVILY_API_KEY}`);
+logger.info(`   UNSPLASH_ACCESS_KEY present: ${!!process.env.UNSPLASH_ACCESS_KEY}`);
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {

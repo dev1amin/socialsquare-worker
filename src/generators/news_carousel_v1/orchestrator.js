@@ -193,14 +193,18 @@ export class NewsCarouselOrchestrator {
                 logger.info(`[${this.traceId}] No news URLs available, skipping HTML scraping`);
             }
 
-            // ETAPA 5.5: Extrai imagens reais da matéria-fonte (og:image, article images)
-            // Essas imagens serão usadas para slide capa + fallback de slides sobre entidades.
+            // ETAPA 5.5: Extrai imagens reais da matéria-fonte usando HTML BRUTO
+            // (o htmlScraper.scrape() remove <img> ao limpar; scrapeRaw preserva tudo)
             let articleImages = [];
             try {
                 const { extractArticleImagesLogged } = await import('../../services/articleImages.service.js');
                 for (const item of allNewsData) {
-                    if (!item?.htmlText || !item?.url) continue;
-                    const { images } = extractArticleImagesLogged(item.htmlText, item.url, this.traceId);
+                    if (!item?.url) continue;
+                    // Busca HTML bruto para ter og:image + <img> inline
+                    const rawHtml = await htmlScraperService.scrapeRaw(item.url);
+                    const source = rawHtml || item.htmlText || '';
+                    if (!source) continue;
+                    const { images } = extractArticleImagesLogged(source, item.url, this.traceId);
                     for (const u of images) {
                         if (!articleImages.includes(u)) articleImages.push(u);
                     }
