@@ -33,7 +33,7 @@ export class EducationalGenerator {
                 original_text: originalText,
                 context: contextText,
                 template_json: JSON.stringify(extendedTemplate),
-                slides_mask: JSON.stringify(extendedMask),
+                slides_mask: JSON.stringify(extendedMask.map(() => true)), // modelo sempre gera subtitle
                 screen_count: screenCount,
             });
 
@@ -52,7 +52,14 @@ export class EducationalGenerator {
             const result = JSON.parse(completion.choices[0].message.content);
             logger.debug(`Educational generator created ${result.slides?.length || 0} slides`);
 
-            return result.slides || [];
+            // Merge title+subtitle para slides onde o template não tem subtitle
+            const rawSlides = result.slides || [];
+            return rawSlides.map((slide, i) => {
+                if (!extendedMask[i] && slide.subtitle) {
+                    return { ...slide, title: `${slide.title} ${slide.subtitle}`, subtitle: null };
+                }
+                return slide;
+            });
         } catch (error) {
             const err = new Error(`Educational generator failed: ${error.message}`);
             err.stage = 'educational_generator';

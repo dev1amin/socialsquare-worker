@@ -41,7 +41,7 @@ export class StoryGenerator {
                 original_text: originalText,
                 context: contextText,
                 template_json: JSON.stringify(extendedTemplate),
-                slides_mask: JSON.stringify(extendedMask),
+                slides_mask: JSON.stringify(extendedMask.map(() => true)), // modelo sempre gera subtitle
                 screen_count: screenCount,
             });
 
@@ -69,7 +69,14 @@ export class StoryGenerator {
                 logger.info(`[story] Successfully generated ${generatedCount} slides`);
             }
 
-            return result.slides || [];
+            // Merge title+subtitle para slides onde o template não tem subtitle
+            const rawSlides = result.slides || [];
+            return rawSlides.map((slide, i) => {
+                if (!extendedMask[i] && slide.subtitle) {
+                    return { ...slide, title: `${slide.title} ${slide.subtitle}`, subtitle: null };
+                }
+                return slide;
+            });
         } catch (error) {
             const err = new Error(`Story generator failed: ${error.message}`);
             err.stage = 'story_generator';

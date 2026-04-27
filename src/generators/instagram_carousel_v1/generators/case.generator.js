@@ -32,7 +32,7 @@ export class CaseGenerator {
                 original_text: originalText,
                 context: contextText,
                 template_json: JSON.stringify(extendedTemplate),
-                slides_mask: JSON.stringify(extendedMask),
+                slides_mask: JSON.stringify(extendedMask.map(() => true)), // modelo sempre gera subtitle
                 screen_count: screenCount,
             });
 
@@ -51,7 +51,14 @@ export class CaseGenerator {
             const result = JSON.parse(completion.choices[0].message.content);
             logger.debug(`Case generator created ${result.slides?.length || 0} slides`);
 
-            return result.slides || [];
+            // Merge title+subtitle para slides onde o template não tem subtitle
+            const rawSlides = result.slides || [];
+            return rawSlides.map((slide, i) => {
+                if (!extendedMask[i] && slide.subtitle) {
+                    return { ...slide, title: `${slide.title} ${slide.subtitle}`, subtitle: null };
+                }
+                return slide;
+            });
         } catch (error) {
             const err = new Error(`Case generator failed: ${error.message}`);
             err.stage = 'case_generator';

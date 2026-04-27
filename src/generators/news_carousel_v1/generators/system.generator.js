@@ -24,7 +24,7 @@ export class SystemGenerator {
                 blueprint_json: JSON.stringify(blueprint),
                 context: input.context || '',
                 template_json: JSON.stringify(extendedTemplate),
-                slides_mask: JSON.stringify(extendedMask),
+                slides_mask: JSON.stringify(extendedMask.map(() => true)), // modelo sempre gera subtitle
                 screen_count: screenCount,
                 news_text: htmlText ? htmlText.substring(0, 3000) : '',
             });
@@ -45,7 +45,14 @@ export class SystemGenerator {
             const result = JSON.parse(completion.choices[0].message.content);
             logger.debug(`System generator created ${result.slides?.length || 0} slides`);
 
-            return result.slides || [];
+            // Merge title+subtitle para slides onde o template não tem subtitle
+            const rawSlides = result.slides || [];
+            return rawSlides.map((slide, i) => {
+                if (!extendedMask[i] && slide.subtitle) {
+                    return { ...slide, title: `${slide.title} ${slide.subtitle}`, subtitle: null };
+                }
+                return slide;
+            });
         } catch (error) {
             const err = new Error(`System generator failed: ${error.message}`);
             err.stage = 'system_generator';

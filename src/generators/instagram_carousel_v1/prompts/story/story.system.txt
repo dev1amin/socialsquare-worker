@@ -120,17 +120,11 @@ DIRETRIZES DE ESCRITA
 - Cada slide deve avançar entendimento ou narrativa, nunca repetir.
 
 ━━━━━━━━━━━━━━━━━━━━━━
-SLIDES SEM SUBTITLE (REGRA CRÍTICA)
+SEMPRE GERE TITLE E SUBTITLE
 ━━━━━━━━━━━━━━━━━━━━━━
 
-Quando a máscara indicar subtitle = false para um slide:
-- O TITLE deve ser AUTOSSUFICIENTE — conter a ideia COMPLETA do slide.
-- Inclua: tese central + contexto mínimo + consequência ou progressão real.
-- PROIBIDO title-teaser: frases curtas que apenas anunciam sem entregar conteúdo.
-- O leitor deve ENTENDER o conteúdo do slide SÓ pelo title.
-- Títulos puramente enigmáticos ou ganchos vazios são INVÁLIDOS nesses slides.
-- BOM: "MC Ryan SP indiciado por sonegação após Receita cruzar 12 fontes de renda"
-- RUIM: "MC Ryan SP enfrenta reviravolta judicial" (vago, sem fato concreto)
+Todos os slides devem ter OBRIGATORIAMENTE title E subtitle.
+Não omita o subtitle em nenhum slide — o sistema fará a fusão quando necessário.
 
 
 Narrativa bem feita é a arma mais poderosa do Instagram: prende atenção, gera empatia,
