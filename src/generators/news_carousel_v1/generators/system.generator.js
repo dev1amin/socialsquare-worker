@@ -17,9 +17,8 @@ export class SystemGenerator {
             const screenCount = input.screen_count || template.slides.length;
             const baseMask = template.slides.map(s => !!s.subtitle);
             const extendedMask = Array.from({ length: screenCount }, (_, i) => baseMask[i % baseMask.length]);
-            const extendedTemplate = Array.from({ length: screenCount }, (_, i) =>
-                extendedMask[i] ? { title: '...', subtitle: '...' } : { title: '...' }
-            );
+            // Pass real template slides so GPT sees actual rhythm, style and structure
+            const extendedTemplate = template.slides;
 
             const { system, user } = await PromptLoader.loadBoth('system', {
                 blueprint_json: JSON.stringify(blueprint),
@@ -31,7 +30,7 @@ export class SystemGenerator {
             });
 
             const completion = await openai.chat.completions.create({
-                model: 'gpt-4o-mini',
+                model: 'gpt-4o',
                 messages: [
                     { role: 'system', content: system },
                     { role: 'user', content: user },

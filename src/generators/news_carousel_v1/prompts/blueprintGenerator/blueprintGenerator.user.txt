@@ -1,1 +1,5 @@
+TEXTO ORIGINAL DA NOTÍCIA (fonte semântica primária):
 {{news_html}}
+
+CONTEXTO DO USUÁRIO (intenção, público, foco desejado):
+{{context}}

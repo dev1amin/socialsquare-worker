@@ -1,16 +1,24 @@
-Texto original:
+Gere um CARROSSEL DO TIPO CASE
+seguindo rigorosamente a estrutura narrativa de CASE.
+
+Use:
+- o TEXTO ORIGINAL como base factual primária (verdade absoluta dos fatos)
+- o CONTEXTO DO USUÁRIO como lente estratégica
+- o TEMPLATE como estrutura fixa
+
+TEXTO ORIGINAL (fonte semântica primária):
 {{original_text}}
 
-Contexto:
+CONTEXTO:
 {{context}}
 
-Template:
+TEMPLATE REAL (estrutura, ritmo e exemplos de conteúdo — 70% desta estrutura):
 {{template_json}}
 
-Máscara de subtitles:
+MÁSCARA DE SUBTITLES (true = tem subtitle, false = não tem — OBRIGATÓRIA):
 {{slides_mask}}
 
-Quantidade obrigatória de slides:
-{{screen_count}}
+Quantidade obrigatória de slides: {{screen_count}} (nem mais, nem menos).
 
-Retorne SOMENTE o array JSON dentro de "slides".
+Retorne SOMENTE o JSON com campo "slides" contendo o array.
+

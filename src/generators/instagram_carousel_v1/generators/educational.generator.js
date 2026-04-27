@@ -1,4 +1,4 @@
-import { openai } from '../../../config/openai.js';
+﻿import { openai } from '../../../config/openai.js';
 import { config } from '../../../config/env.js';
 import { logger } from '../../../config/logger.js';
 import { PromptLoader } from '../utils/promptLoader.js';
@@ -6,9 +6,9 @@ import { recordTokens } from '../../../shared/tokenUtils.js';
 import { buildOriginalText, buildContextText } from '../utils/contentBuilder.js';
 
 /**
- * Educational Generator: carrosséis educacionais estratégicos
- * Foco em clareza operacional e leitura sistêmica
- * NOVO: Suporta múltiplas fontes de conteúdo (multifont)
+ * Educational Generator: carrossÃ©is educacionais estratÃ©gicos
+ * Foco em clareza operacional e leitura sistÃªmica
+ * NOVO: Suporta mÃºltiplas fontes de conteÃºdo (multifont)
  */
 export class EducationalGenerator {
     constructor(tokenTracker) {
@@ -26,9 +26,7 @@ export class EducationalGenerator {
             const screenCount = input.screen_count || template.slides.length;
             const baseMask = template.slides.map(s => !!s.subtitle);
             const extendedMask = Array.from({ length: screenCount }, (_, i) => baseMask[i % baseMask.length]);
-            const extendedTemplate = Array.from({ length: screenCount }, (_, i) =>
-                extendedMask[i] ? { title: '...', subtitle: '...' } : { title: '...' }
-            );
+            const extendedTemplate = template.slides; // Real template for better rhythm/style
 
             const { system, user } = await PromptLoader.loadBoth('educational', {
                 blueprint_json: JSON.stringify(blueprint, null, 2),
@@ -40,7 +38,7 @@ export class EducationalGenerator {
             });
 
             const completion = await openai.chat.completions.create({
-                model: 'gpt-4o-mini',
+                model: 'gpt-4o',
                 messages: [
                     { role: 'system', content: system },
                     { role: 'user', content: user },

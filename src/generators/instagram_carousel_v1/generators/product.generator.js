@@ -1,4 +1,4 @@
-import { openai } from '../../../config/openai.js';
+﻿import { openai } from '../../../config/openai.js';
 import { config } from '../../../config/env.js';
 import { logger } from '../../../config/logger.js';
 import { PromptLoader } from '../utils/promptLoader.js';
@@ -6,9 +6,9 @@ import { recordTokens } from '../../../shared/tokenUtils.js';
 import { buildOriginalText, buildContextText } from '../utils/contentBuilder.js';
 
 /**
- * Product Generator: carrosséis focados em produto/sistema
- * Protagonista é o PRODUTO, não pessoas
- * NOVO: Suporta múltiplas fontes de conteúdo (multifont)
+ * Product Generator: carrossÃ©is focados em produto/sistema
+ * Protagonista Ã© o PRODUTO, nÃ£o pessoas
+ * NOVO: Suporta mÃºltiplas fontes de conteÃºdo (multifont)
  */
 export class ProductGenerator {
     constructor(tokenTracker) {
@@ -26,9 +26,7 @@ export class ProductGenerator {
             const screenCount = input.screen_count || template.slides.length;
             const baseMask = template.slides.map(s => !!s.subtitle);
             const extendedMask = Array.from({ length: screenCount }, (_, i) => baseMask[i % baseMask.length]);
-            const extendedTemplate = Array.from({ length: screenCount }, (_, i) =>
-                extendedMask[i] ? { title: '...', subtitle: '...' } : { title: '...' }
-            );
+            const extendedTemplate = template.slides; // Real template for better rhythm/style
 
             const { system, user } = await PromptLoader.loadBoth('product', {
                 original_text: originalText,
@@ -39,7 +37,7 @@ export class ProductGenerator {
             });
 
             const completion = await openai.chat.completions.create({
-                model: 'gpt-4o-mini',
+                model: 'gpt-4o',
                 messages: [
                     { role: 'system', content: system },
                     { role: 'user', content: user },

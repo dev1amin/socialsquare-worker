@@ -2,7 +2,8 @@ Gere um CARROSSEL DO TIPO CASE
 seguindo rigorosamente a estrutura narrativa de CASE.
 
 Use:
-- o BLUEPRINT como guia narrativo principal (tom, tema, estrutura) e base factual
+- o TEXTO ORIGINAL como base factual primária
+- o BLUEPRINT como guia narrativo principal (tom, tema, estrutura)
 - o CONTEXTO DO USUÁRIO como lente estratégica
 - o TEMPLATE como estrutura fixa
 
@@ -12,11 +13,18 @@ BLUEPRINT (42 CHAVES NARRATIVAS):
 CONTEXTO:
 {{context}}
 
-TEXTO ORIGINAL DA NOTÍCIA (referência para fidelidade aos fatos):
+TEXTO ORIGINAL DA NOTÍCIA (fonte semântica primária — verdade absoluta dos fatos):
 {{news_text}}
 
-TEMPLATE DE REFERÊNCIA (estrutura, ritmo e máscara):
+TEMPLATE REAL (estrutura, ritmo e exemplos de conteúdo — 70% desta estrutura):
 {{template_json}}
+
+MÁSCARA DE SUBTITLES (true = tem subtitle, false = não tem — OBRIGATÓRIA):
+{{slides_mask}}
+
+Quantidade obrigatória de slides: {{screen_count}} (nem mais, nem menos).
+
+Retorne SOMENTE o JSON com campo "slides" contendo o array.
 
 Máscara de subtitles (true = slide tem subtitle, false = não tem):
 {{slides_mask}}

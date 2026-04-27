@@ -1,3 +1,16 @@
+Gere um novo carrossel no formato de HISTÓRIA ANCORADA,
+utilizando obrigatoriamente:
+
+- O TEXTO ORIGINAL como fonte semântica primária (verdade absoluta dos fatos)
+- O CONTEXTO DO USUÁRIO como lente estratégica
+- A estrutura, ritmo e máscara do Template
+
+A história deve:
+- Explicitar os mesmos pontos do conteúdo original
+- Usar narrativa apenas como recurso de exemplificação
+- Deixar claro, em ao menos um slide, que a história ilustra o tema
+- Preservar todos os fatos, nomes e dados verificáveis do texto original
+
 === FONTES DE CONTEÚDO (USE TODAS) ===
 
 {{original_text}}
@@ -6,7 +19,7 @@
 
 {{context}}
 
-=== TEMPLATE DE REFERÊNCIA ===
+=== TEMPLATE REAL (estrutura, ritmo e exemplos — 70% desta estrutura) ===
 
 {{template_json}}
 
@@ -17,6 +30,7 @@ Máscara de subtitles: {{slides_mask}}
 ⚠️ QUANTIDADE OBRIGATÓRIA DE SLIDES: {{screen_count}}
 
 IMPORTANTE: Você DEVE gerar EXATAMENTE {{screen_count}} slides. Nem mais, nem menos.
+Retorne SOMENTE o JSON com campo "slides" contendo o array.
 
 Se houver múltiplas fontes no texto original (separadas por "---"), distribua o conteúdo de TODAS as fontes ao longo dos {{screen_count}} slides.
 

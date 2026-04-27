@@ -26,7 +26,8 @@ export class BlueprintGeneratorAgent {
             // Carrega prompts
             const systemPrompt = await PromptLoader.loadSystem('blueprintGenerator');
             const userPrompt = await PromptLoader.loadUser('blueprintGenerator', {
-                news_html: htmlText
+                news_html: htmlText,
+                context: context || ''
             });
 
             const response = await openai.chat.completions.create({

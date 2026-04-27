@@ -63,7 +63,10 @@ export class BrandAdapterAgent {
                 return {
                     ...original,
                     title: adapted.title || original.title,
-                    subtitle: adapted.subtitle !== undefined ? adapted.subtitle : original.subtitle,
+                    // Preserve original subtitle if adapter returns empty/null (don't overwrite real content)
+                    subtitle: (adapted.subtitle !== undefined && adapted.subtitle !== null && adapted.subtitle !== '')
+                        ? adapted.subtitle
+                        : original.subtitle,
                 };
             });
         } catch (error) {

@@ -728,7 +728,7 @@ export class InstagramCarouselOrchestrator {
             })),
             conteudos: slides.map(slide => ({
                 title: slide.title,
-                subtitle: slide.subtitle || null,
+                subtitle: (slide.subtitle !== undefined && slide.subtitle !== null && slide.subtitle !== '') ? slide.subtitle : null,
                 keyword: slide.keyword,
                 video_url: slide.video_url || null,
                 imagem_fundo: slide.imagem_fundo || null,

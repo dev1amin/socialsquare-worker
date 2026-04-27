@@ -1,16 +1,27 @@
-Texto original:
+Gere um novo carrossel do tipo PRODUTO utilizando obrigatoriamente:
+
+- O TEXTO ORIGINAL como fonte semântica primária e argumental
+- O CONTEXTO DO USUÁRIO como lente estratégica
+- A estrutura, ritmo e máscara do Template
+
+O carrossel deve:
+- Ter o produto como protagonista
+- Usar prova, lógica e sistema para justificar valor
+- Conduzir explicitamente a um CTA no encerramento
+
+TEXTO ORIGINAL (fonte semântica primária — verdade absoluta dos fatos):
 {{original_text}}
 
-Contexto:
+CONTEXTO:
 {{context}}
 
-Template:
+TEMPLATE REAL (estrutura, ritmo e exemplos de conteúdo — 70% desta estrutura):
 {{template_json}}
 
-Máscara de subtitles:
+MÁSCARA DE SUBTITLES (true = tem subtitle, false = não tem — OBRIGATÓRIA):
 {{slides_mask}}
 
-Quantidade obrigatória de slides:
-{{screen_count}}
+Quantidade obrigatória de slides: {{screen_count}} (nem mais, nem menos).
 
-Retorne SOMENTE o array JSON dentro de "slides".
+Retorne SOMENTE o JSON com campo "slides" contendo o array.
+

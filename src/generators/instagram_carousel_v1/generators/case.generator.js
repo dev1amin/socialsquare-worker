@@ -1,4 +1,4 @@
-import { openai } from '../../../config/openai.js';
+﻿import { openai } from '../../../config/openai.js';
 import { config } from '../../../config/env.js';
 import { logger } from '../../../config/logger.js';
 import { PromptLoader } from '../utils/promptLoader.js';
@@ -6,9 +6,9 @@ import { recordTokens } from '../../../shared/tokenUtils.js';
 import { buildOriginalText, buildContextText } from '../utils/contentBuilder.js';
 
 /**
- * Case Generator: leitura estratégica aplicada baseada em fatos
- * Protagonista é a DECISÃO ESTRUTURAL
- * NOVO: Suporta múltiplas fontes de conteúdo (multifont)
+ * Case Generator: leitura estratÃ©gica aplicada baseada em fatos
+ * Protagonista Ã© a DECISÃƒO ESTRUTURAL
+ * NOVO: Suporta mÃºltiplas fontes de conteÃºdo (multifont)
  */
 export class CaseGenerator {
     constructor(tokenTracker) {
@@ -26,9 +26,7 @@ export class CaseGenerator {
             const screenCount = input.screen_count || template.slides.length;
             const baseMask = template.slides.map(s => !!s.subtitle);
             const extendedMask = Array.from({ length: screenCount }, (_, i) => baseMask[i % baseMask.length]);
-            const extendedTemplate = Array.from({ length: screenCount }, (_, i) =>
-                extendedMask[i] ? { title: '...', subtitle: '...' } : { title: '...' }
-            );
+            const extendedTemplate = template.slides; // Real template for better rhythm/style
 
             const { system, user } = await PromptLoader.loadBoth('case', {
                 original_text: originalText,
@@ -39,7 +37,7 @@ export class CaseGenerator {
             });
 
             const completion = await openai.chat.completions.create({
-                model: 'gpt-4o-mini',
+                model: 'gpt-4o',
                 messages: [
                     { role: 'system', content: system },
                     { role: 'user', content: user },

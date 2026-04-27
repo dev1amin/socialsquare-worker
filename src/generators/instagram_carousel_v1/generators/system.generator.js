@@ -1,4 +1,4 @@
-import { openai } from '../../../config/openai.js';
+﻿import { openai } from '../../../config/openai.js';
 import { config } from '../../../config/env.js';
 import { logger } from '../../../config/logger.js';
 import { PromptLoader } from '../utils/promptLoader.js';
@@ -7,8 +7,8 @@ import { buildOriginalText, buildContextText } from '../utils/contentBuilder.js'
 
 /**
  * System Generator: usa blueprint para gerar carrossel
- * Baseado na combinação de blueprint + template
- * NOVO: Suporta múltiplas fontes de conteúdo (multifont)
+ * Baseado na combinaÃ§Ã£o de blueprint + template
+ * NOVO: Suporta mÃºltiplas fontes de conteÃºdo (multifont)
  */
 export class SystemGenerator {
     constructor(tokenTracker) {
@@ -26,9 +26,7 @@ export class SystemGenerator {
             const screenCount = input.screen_count || template.slides.length;
             const baseMask = template.slides.map(s => !!s.subtitle);
             const extendedMask = Array.from({ length: screenCount }, (_, i) => baseMask[i % baseMask.length]);
-            const extendedTemplate = Array.from({ length: screenCount }, (_, i) =>
-                extendedMask[i] ? { title: '...', subtitle: '...' } : { title: '...' }
-            );
+            const extendedTemplate = template.slides; // Real template for better rhythm/style
 
             const { system, user } = await PromptLoader.loadBoth('system', {
                 blueprint_json: JSON.stringify(blueprint, null, 2),
@@ -40,7 +38,7 @@ export class SystemGenerator {
             });
 
             const completion = await openai.chat.completions.create({
-                model: 'gpt-4o-mini',
+                model: 'gpt-4o',
                 messages: [
                     { role: 'system', content: system },
                     { role: 'user', content: user },

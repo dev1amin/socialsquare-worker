@@ -450,7 +450,7 @@ export class NewsCarouselOrchestrator {
             },
             conteudos: slides.map(slide => ({
                 title: slide.title,
-                subtitle: slide.subtitle || null,
+                subtitle: (slide.subtitle !== undefined && slide.subtitle !== null && slide.subtitle !== '') ? slide.subtitle : null,
                 keyword: slide.keyword,
                 imagem_fundo: slide.imagem_fundo || null,
                 imagem_fundo2: slide.imagem_fundo2 || null,

@@ -1,4 +1,7 @@
-Transforme o BLUEPRINT abaixo no template mencionado anteriormente:
+Transforme o BLUEPRINT abaixo em um novo carrossel seguindo rigorosamente:
+- a estrutura e máscara do Template (70% estrutura do template)
+- as regras do System Prompt
+- o número exato de slides
 
 BLUEPRINT:
 {{blueprint_json}}
@@ -6,17 +9,18 @@ BLUEPRINT:
 CONTEXTO:
 {{context}}
 
-TEXTO ORIGINAL DA NOTÍCIA (use como referência para manter fidelidade aos fatos):
+TEXTO ORIGINAL DA NOTÍCIA (fonte semântica primária — verdade absoluta dos fatos):
 {{news_text}}
 
-TEMPLATE DE REFERÊNCIA (estrutura, ritmo e máscara):
+TEMPLATE REAL (estrutura, ritmo e exemplos de conteúdo — referência principal):
 {{template_json}}
 
-Máscara de subtitles (true = slide tem subtitle, false = não tem):
+MÁSCARA DE SUBTITLES (true = tem subtitle, false = não tem — OBRIGATÓRIA):
 {{slides_mask}}
 
-Quantidade de objetos = {{screen_count}} (nem mais, nem menos).
+Quantidade obrigatória de slides: {{screen_count}} (nem mais, nem menos).
 
-IMPORTANTE: O carrossel deve contar a mesma história da notícia, preservando dados, fatos e números. Adapte apenas o estilo para ser viral e engajante.
+Retorne SOMENTE o JSON com campo "slides" contendo o array.
+
 
 Retorne o JSON dentro de "slides".
