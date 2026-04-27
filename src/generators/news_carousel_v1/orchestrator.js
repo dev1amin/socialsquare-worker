@@ -288,32 +288,121 @@ export class NewsCarouselOrchestrator {
                 logger.warn(`[${this.traceId}] Google Images failed, continuing with Unsplash: ${err.message}`);
             }
 
-            // ETAPA 9.7: Tavily Images - busca imagens de PESSOAS / ENTIDADES FAMOSAS
-            // Aciona quando google_keyword existe (e Google não preencheu) ou keyword é de pessoa.
+            // ============================================================
+            // ETAPA 9.7 — RELEVÂNCIA TEMÁTICA (sempre roda)
+            // Estratégia robusta: independente dos keywords gerados pelo
+            // KeywordAgent, sempre tenta encher TODOS os slides vazios com
+            // imagens REALMENTE relacionadas ao tema do carrossel.
+            //
+            // Pool A = imagens da matéria-fonte (og:image, <article> imgs)
+            // Pool B = imagens do tema central via Tavily (1 chamada)
+            // Pool C = imagens via Tavily da keyword do próprio slide
+            //         (só para slides ainda vazios após A+B)
+            //
+            // ORDEM DE PREFERÊNCIA por slide:
+            // - Slide 0 (capa): Pool A → Pool B
+            // - Demais slides:  Pool B → Pool A → Pool C → Unsplash
+            // ============================================================
+            logger.info(`[${this.traceId}] [VERSION:img-v3] Starting thematic image fill...`);
             try {
-                const { isPersonKeyword, searchPersonImages } = await import('../../services/tavily-images.service.js');
-                const personSlides = slidesForUnsplash
-                    .map((s, idx) => ({ s, idx }))
-                    .filter(({ s }) => {
-                        if (s._googleImageUsed) return false;
-                        if (s.google_keyword && s.google_keyword.trim()) return true;
-                        return isPersonKeyword(s.keyword);
-                    });
+                const { searchPersonImages } = await import('../../services/tavily-images.service.js');
 
-                if (personSlides.length > 0) {
-                    logger.info(`[${this.traceId}] Fetching Tavily images for ${personSlides.length} person/entity slides...`);
-                    const results = await Promise.all(
-                        personSlides.map(({ s }) => {
-                            if (s.google_keyword && s.google_keyword.trim()) {
-                                return searchPersonImages(s.google_keyword, { appendPhoto: false });
+                const articlePool = Array.isArray(this._articleImages) ? [...this._articleImages] : [];
+
+                // Extrai assunto principal do blueprint para 1 query Tavily abrangente
+                const subjectQuery = (
+                    validatedBlueprint?.tema_central ||
+                    validatedBlueprint?.mensagem_principal ||
+                    ''
+                ).trim();
+
+                let subjectPool = [];
+                if (subjectQuery) {
+                    logger.info(`[${this.traceId}] Tavily main subject query: "${subjectQuery}"`);
+                    try {
+                        const r = await searchPersonImages(subjectQuery, {
+                            appendPhoto: false,
+                            maxImages: 10,
+                        });
+                        const urls = [r?.imagem_fundo, r?.imagem_fundo2, r?.imagem_fundo3].filter(Boolean);
+                        // Tavily devolve só 3 nesse helper; tenta variantes adicionais
+                        const variantQueries = [];
+                        if (validatedBlueprint?.tema_central && validatedBlueprint?.gancho_de_abertura) {
+                            variantQueries.push(`${validatedBlueprint.tema_central} ${validatedBlueprint.gancho_de_abertura}`.slice(0, 200));
+                        }
+                        for (const vq of variantQueries) {
+                            const rv = await searchPersonImages(vq, { appendPhoto: false });
+                            for (const u of [rv?.imagem_fundo, rv?.imagem_fundo2, rv?.imagem_fundo3]) {
+                                if (u && !urls.includes(u)) urls.push(u);
                             }
-                            return searchPersonImages(s.keyword);
-                        })
+                        }
+                        subjectPool = urls;
+                        logger.info(`[${this.traceId}] Subject pool size: ${subjectPool.length}`);
+                    } catch (err) {
+                        logger.warn(`[${this.traceId}] Tavily subject search failed: ${err.message}`);
+                    }
+                }
+
+                const isFilled = (s) => Boolean(s && (s._tavilyImageUsed || s._googleImageUsed || s._articleImageUsed));
+                const usedUrls = new Set();
+                const takeFrom = (pool) => {
+                    while (pool.length > 0) {
+                        const u = pool.shift();
+                        if (u && !usedUrls.has(u)) { usedUrls.add(u); return u; }
+                    }
+                    return null;
+                };
+                const peek = (pool) => pool.find((u) => u && !usedUrls.has(u)) || null;
+
+                // 1) CAPA: prefere imagem do artigo; fallback para subject
+                if (slidesForUnsplash[0] && !isFilled(slidesForUnsplash[0])) {
+                    const cover = takeFrom(articlePool) || takeFrom(subjectPool);
+                    if (cover) {
+                        slidesForUnsplash[0] = {
+                            ...slidesForUnsplash[0],
+                            imagem_fundo: cover,
+                            imagem_fundo2: peek(articlePool) || peek(subjectPool) || null,
+                            imagem_fundo3: null,
+                            image_source: 'article',
+                            _articleImageUsed: true,
+                        };
+                        logger.info(`[${this.traceId}] Cover slide filled with: ${cover}`);
+                    }
+                }
+
+                // 2) DEMAIS SLIDES: prefere subject; depois article
+                let filled = slidesForUnsplash[0]?._articleImageUsed ? 1 : 0;
+                for (let i = 1; i < slidesForUnsplash.length; i++) {
+                    const s = slidesForUnsplash[i];
+                    if (isFilled(s)) continue;
+                    const url = takeFrom(subjectPool) || takeFrom(articlePool);
+                    if (!url) break; // pools esgotaram
+                    slidesForUnsplash[i] = {
+                        ...s,
+                        imagem_fundo: url,
+                        imagem_fundo2: null,
+                        imagem_fundo3: null,
+                        image_source: subjectPool.length >= 0 ? 'tavily-subject' : 'article',
+                        _articleImageUsed: true,
+                    };
+                    filled++;
+                }
+                logger.info(`[${this.traceId}] Thematic fill: ${filled}/${slidesForUnsplash.length} slides`);
+
+                // 3) Slides ainda vazios: Tavily da própria keyword (sem appendPhoto p/ não viesar)
+                const remaining = slidesForUnsplash
+                    .map((s, idx) => ({ s, idx }))
+                    .filter(({ s }) => !isFilled(s) && s.keyword);
+                if (remaining.length > 0) {
+                    logger.info(`[${this.traceId}] Filling ${remaining.length} remaining slides via Tavily-keyword...`);
+                    const results = await Promise.all(
+                        remaining.map(({ s }) => searchPersonImages(s.keyword, { appendPhoto: false }))
                     );
-                    let tavilyUsed = 0;
-                    personSlides.forEach(({ idx }, i) => {
+                    let tavilyKwUsed = 0;
+                    remaining.forEach(({ idx }, i) => {
                         const r = results[i];
-                        if (r?.imagem_fundo) {
+                        if (r?.imagem_fundo && !usedUrls.has(r.imagem_fundo)) {
+                            usedUrls.add(r.imagem_fundo);
                             slidesForUnsplash[idx] = {
                                 ...slidesForUnsplash[idx],
                                 imagem_fundo: r.imagem_fundo,
@@ -323,58 +412,13 @@ export class NewsCarouselOrchestrator {
                                 image_source: 'tavily',
                                 _tavilyImageUsed: true,
                             };
-                            tavilyUsed++;
+                            tavilyKwUsed++;
                         }
                     });
-                    logger.info(`[${this.traceId}] Tavily images used for ${tavilyUsed}/${personSlides.length} slides`);
+                    logger.info(`[${this.traceId}] Tavily-keyword filled ${tavilyKwUsed}/${remaining.length} slides`);
                 }
             } catch (err) {
-                logger.warn(`[${this.traceId}] Tavily images step failed, falling back to Unsplash: ${err.message}`);
-            }
-
-            // ETAPA 9.8: Aplica imagens da matéria-fonte (og:image / article inline images)
-            // Prioridade: capa (slide 0) sempre recebe a primeira imagem real;
-            // imagens restantes vão para slides com google_keyword que ainda estão sem imagem.
-            try {
-                const pool = Array.isArray(this._articleImages) ? [...this._articleImages] : [];
-                if (pool.length > 0) {
-                    const isFilled = (s) => Boolean(s && (s._tavilyImageUsed || s._googleImageUsed || s._articleImageUsed));
-
-                    // 1) Capa
-                    if (slidesForUnsplash[0] && !isFilled(slidesForUnsplash[0])) {
-                        const url = pool.shift();
-                        slidesForUnsplash[0] = {
-                            ...slidesForUnsplash[0],
-                            imagem_fundo: url,
-                            imagem_fundo2: pool[0] || null,
-                            imagem_fundo3: pool[1] || null,
-                            image_source: 'article',
-                            _articleImageUsed: true,
-                        };
-                        logger.info(`[${this.traceId}] Article image applied to cover slide`);
-                    }
-
-                    // 2) Slides com google_keyword ainda vazios
-                    let used = 1;
-                    for (let i = 1; i < slidesForUnsplash.length && pool.length > 0; i++) {
-                        const s = slidesForUnsplash[i];
-                        if (isFilled(s)) continue;
-                        if (!s.google_keyword) continue;
-                        const url = pool.shift();
-                        slidesForUnsplash[i] = {
-                            ...s,
-                            imagem_fundo: url,
-                            imagem_fundo2: pool[0] || null,
-                            imagem_fundo3: pool[1] || null,
-                            image_source: 'article',
-                            _articleImageUsed: true,
-                        };
-                        used++;
-                    }
-                    logger.info(`[${this.traceId}] Article images applied to ${used} slide(s)`);
-                }
-            } catch (err) {
-                logger.warn(`[${this.traceId}] Article images apply step failed: ${err.message}`);
+                logger.warn(`[${this.traceId}] Thematic image fill step failed: ${err.message}`, { stack: err.stack });
             }
 
             // ETAPA 10: Unsplash - busca imagens de fundo (pula slides que já têm Google Image)
