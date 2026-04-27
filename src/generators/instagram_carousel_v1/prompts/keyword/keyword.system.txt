@@ -57,9 +57,32 @@ NÃO use google_keyword para:
 Para esses, use APENAS a keyword normal (Unsplash).
 
 ━━━━━━━━━━━━━━━━━━━━━━
+TAVILY — NOMES PRÓPRIOS (entity_name)
+━━━━━━━━━━━━━━━━━━━━━━
+
+Quando o title ou subtitle mencionar uma PESSOA ESPECÍFICA, ARTISTA, ATLETA,
+POLÍTICO, MARCA ou ORGANIZAÇÃO com nome próprio reconhecível:
+- Adicione o campo "entity_name" com o NOME LITERAL extraído do slide.
+- Ex: title "MC Ryan SP indiciado" → entity_name: "MC Ryan SP"
+- Ex: title "Elon Musk vende Tesla" → entity_name: "Elon Musk"
+- Ex: title "Prefeitura de São Paulo anuncia" → entity_name: "Prefeitura São Paulo"
+- O entity_name é usado para busca direta no Tavily; seja EXATO e LITERAL.
+
+NÃO use entity_name para:
+- Conceitos abstratos ou situações genéricas
+- Profissões sem nome ("empresário", "médica", "time de futebol")
+- Locais genéricos sem nome próprio famoso
+
+Diferença entre google_keyword e entity_name:
+- google_keyword → entidade MUITO famosa com farta cobertura de imagens (CEOs globais, monumentos).
+- entity_name → nome próprio específico de qualquer tamanho de fama, usado para busca Tavily.
+- Os dois podem coexistir no mesmo slide. Se só um se aplica, inclua apenas esse.
+
+━━━━━━━━━━━━━━━━━━━━━━
 FORMATO DE SAÍDA
 ━━━━━━━━━━━━━━━━━━━━━━
 
 Retorne um objeto JSON com o array de slides atualizado.
 Cada slide DEVE ter a propriedade "keyword" (para Unsplash).
 Slides sobre entidades famosas TAMBÉM devem ter "google_keyword".
+Slides com nome próprio específico TAMBÉM devem ter "entity_name".

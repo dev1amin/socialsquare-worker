@@ -1,48 +1,61 @@
-﻿VocÃª receberÃ¡ um BLUEPRINT NARRATIVO ESTRATÃ‰GICO. Esse blueprint define tema,
-intenÃ§Ã£o, Ã¢ngulo, narrativa, tese e objetivo estratÃ©gico do conteÃºdo.
+Voce recebera um BLUEPRINT NARRATIVO ESTRATEGICO. Esse blueprint define tema,
+intencao, angulo, narrativa, tese e objetivo estrategico do conteudo.
 
-VocÃª tambÃ©m receberÃ¡ um Template de carrossel contendo slides reais.
-O Template define ritmo, estilo estrutural, progressÃ£o narrativa
-e a mÃ¡scara de presenÃ§a/ausÃªncia de subtitle.
+Voce tambem recebera um Template de carrossel contendo slides reais.
+O Template define ritmo, estilo estrutural, progressao narrativa
+e a mascara de presenca/ausencia de subtitle.
 
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
+━━━━━━━━━━━━━━━━━━━━━━
 OBJETIVO
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
+━━━━━━━━━━━━━━━━━━━━━━
 
 Gerar um novo carrossel original combinando:
-1. A estrutura do Template (ritmo, cadÃªncia, posiÃ§Ã£o de impacto, mÃ¡scara de subtitles).
-2. A intenÃ§Ã£o temÃ¡tica e argumentativa do blueprint.
-3. A proporÃ§Ã£o criativa: 70% estrutura/ritmo do Template e 30% narrativa do blueprint.
+1. A estrutura do Template (ritmo, cadencia, posicao de impacto, mascara de subtitles).
+2. A intencao tematica e argumentativa do blueprint.
+3. A proporcao criativa: 70% estrutura/ritmo do Template e 30% narrativa do blueprint.
 
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
+━━━━━━━━━━━━━━━━━━━━━━
 DIRETRIZES
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
+━━━━━━━━━━━━━━━━━━━━━━
 
-- O blueprint fornece tema, tese, Ã¢ngulo e intenÃ§Ã£o.
-- O Template fornece ritmo, ordem lÃ³gica, densidade e estrutura funcional dos slides.
-- O conteÃºdo deve avanÃ§ar slide a slide, mantendo coerÃªncia narrativa.
-- Subtitles aprofundam ou contextualizam; titles capturam atenÃ§Ã£o.
-- NÃ£o inventar fatos nÃ£o presentes no blueprint.
-- Fidelidade total ao texto original da notÃ­cia: preserve nomes, dados, fatos.
+- O blueprint fornece tema, tese, angulo e intencao.
+- O Template fornece ritmo, ordem logica, densidade e estrutura funcional dos slides.
+- O conteudo deve avancar slide a slide, mantendo coerencia narrativa.
+- Subtitles aprofundam ou contextualizam; titles capturam atencao.
+- Nao inventar fatos nao presentes no blueprint.
+- Fidelidade total ao texto original da noticia: preserve nomes, dados, fatos.
 
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
-PROIBIÃ‡Ã•ES ABSOLUTAS
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
+━━━━━━━━━━━━━━━━━━━━━━
+PROIBICOES ABSOLUTAS
+━━━━━━━━━━━━━━━━━━━━━━
 
-- Proibido frases genÃ©ricas de marketing ou coaching.
-- Proibido tÃ­tulos vagos sem substÃ¢ncia.
+- Proibido frases genericas de marketing ou coaching.
+- Proibido titulos vagos sem substancia.
 - Proibido repetir a mesma ideia em slides diferentes.
-- Proibido inventar dados, nÃºmeros ou fatos.
+- Proibido inventar dados, numeros ou fatos.
 - Proibido copiar trechos literais do blueprint ou template.
 - Proibido texto fora do JSON.
 
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
-REGRAS ESTRUTURAIS (INVIOLÃVEIS)
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
+━━━━━━━━━━━━━━━━━━━━━━
+SLIDES SEM SUBTITLE (REGRA CRITICA)
+━━━━━━━━━━━━━━━━━━━━━━
 
-- SaÃ­da obrigatÃ³ria: array JSON dentro do campo "slides".
+Quando a mascara indicar subtitle = false para um slide:
+- O TITLE deve ser AUTOSSUFICIENTE — conter a ideia COMPLETA do slide.
+- Inclua: tese central + contexto minimo + consequencia ou progressao real.
+- PROIBIDO title-teaser: frases curtas que apenas anunciam sem entregar conteudo.
+- O leitor deve ENTENDER o conteudo do slide SO pelo title.
+- Titulos puramente enigmaticos ou ganchos vazios sao INVALIDOS nesses slides.
+- BOM: "MC Ryan SP indiciado por sonegacao apos Receita cruzar 12 fontes de renda"
+- RUIM: "MC Ryan SP enfrenta reviravolta judicial" (vago, sem fato concreto)
+
+━━━━━━━━━━━━━━━━━━━━━━
+REGRAS ESTRUTURAIS (INVIOLAVEIS)
+━━━━━━━━━━━━━━━━━━━━━━
+
+- Saida obrigatoria: array JSON dentro do campo "slides".
 - Quantidade exata de objetos conforme screen_count.
-- Usar exatamente a mÃ¡scara de subtitles do Template.
+- Usar exatamente a mascara de subtitles do Template.
 - Cada objeto: {"title": "..."} ou {"title": "...", "subtitle": "..."}.
 - Proibido criar campos adicionais.
 - Proibido texto fora do array JSON.

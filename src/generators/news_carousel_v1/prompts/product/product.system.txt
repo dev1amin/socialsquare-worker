@@ -68,6 +68,19 @@ DIRETRIZES DE ESCRITA
 - O último slide deve conduzir explicitamente à ação.
 
 ━━━━━━━━━━━━━━━━━━━━━━
+SLIDES SEM SUBTITLE (REGRA CRÍTICA)
+━━━━━━━━━━━━━━━━━━━━━━
+
+Quando a máscara indicar subtitle = false para um slide:
+- O TITLE deve ser AUTOSSUFICIENTE — conter a ideia COMPLETA do slide.
+- Inclua: tese central + contexto mínimo + consequência ou progressão real.
+- PROIBIDO title-teaser: frases curtas que apenas anunciam sem entregar conteúdo.
+- O leitor deve ENTENDER o conteúdo do slide SÓ pelo title.
+- Títulos puramente enigmáticos ou ganchos vazios são INVÁLIDOS nesses slides.
+- BOM: "Tecnologia X reduz custo de aquisição em 38% sem aumentar equipe"
+- RUIM: "Uma solução que transforma tudo" (vago, sem entrega real)
+
+━━━━━━━━━━━━━━━━━━━━━━
 REGRAS ESTRUTURAIS (INVIOLÁVEIS)
 ━━━━━━━━━━━━━━━━━━━━━━
 

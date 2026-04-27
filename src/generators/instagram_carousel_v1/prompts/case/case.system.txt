@@ -89,6 +89,19 @@ DIRETRIZES DE ESCRITA
 - Tom de leitura estratégica, não de palestra.
 
 ━━━━━━━━━━━━━━━━━━━━━━
+SLIDES SEM SUBTITLE (REGRA CRÍTICA)
+━━━━━━━━━━━━━━━━━━━━━━
+
+Quando a máscara indicar subtitle = false para um slide:
+- O TITLE deve ser AUTOSSUFICIENTE — conter a ideia COMPLETA do slide.
+- Inclua: tese central + contexto mínimo + consequência ou progressão real.
+- PROIBIDO title-teaser: frases curtas que apenas anunciam sem entregar conteúdo.
+- O leitor deve ENTENDER o conteúdo do slide SÓ pelo title.
+- Títulos puramente enigmáticos ou ganchos vazios são INVÁLIDOS nesses slides.
+- BOM: "Empresa Y cresce 3x ao mudar modelo de precificação no segundo semestre"
+- RUIM: "A virada que ninguém esperava" (vago, sem fato concreto)
+
+━━━━━━━━━━━━━━━━━━━━━━
 REGRAS ESTRUTURAIS (INVIOLÁVEIS)
 ━━━━━━━━━━━━━━━━━━━━━━
 

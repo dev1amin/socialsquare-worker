@@ -524,33 +524,33 @@ export class InstagramCarouselOrchestrator {
                 logger.warn(`[${this.traceId}] Google Images failed, continuing with Unsplash: ${err.message}`);
             }
 
-            // ETAPA 11.7: Tavily Images - busca imagens de PESSOAS / ENTIDADES FAMOSAS
-            // (Unsplash performa mal para isso)
-            //   - Aciona se slide.google_keyword existe e Google não preencheu (entidade real)
-            //   - OU se a keyword genérica fala de pessoa (heurística PT/EN)
+            // ETAPA 11.7: Tavily Images - busca imagens para slides com entity_name ou google_keyword
+            // Regra: apenas slides com nome próprio identificado vão para o Tavily.
+            // Slides sem entidade vão direto para o Unsplash (ETAPA 12), evitando 100% Tavily.
             try {
-                const { isPersonKeyword, searchPersonImages } = await import('../../services/tavily-images.service.js');
-                const personSlides = slidesForUnsplash
+                const { searchPersonImages } = await import('../../services/tavily-images.service.js');
+                const entitySlides = slidesForUnsplash
                     .map((s, idx) => ({ s, idx }))
                     .filter(({ s }) => {
                         if (s._googleImageUsed) return false;
-                        if (s.google_keyword && s.google_keyword.trim()) return true;
-                        return isPersonKeyword(s.keyword);
+                        // Usa entity_name (nome próprio extraído pelo keyword agent) ou google_keyword
+                        return (s.entity_name && s.entity_name.trim()) ||
+                               (s.google_keyword && s.google_keyword.trim());
                     });
 
-                if (personSlides.length > 0) {
-                    logger.info(`[${this.traceId}] Fetching Tavily images for ${personSlides.length} person/entity slides...`);
+                if (entitySlides.length > 0) {
+                    logger.info(`[${this.traceId}] Fetching Tavily images for ${entitySlides.length} named-entity slides...`);
                     const results = await Promise.all(
-                        personSlides.map(({ s }) => {
-                            // Quando temos google_keyword (nome próprio), não anexamos "photo"
-                            if (s.google_keyword && s.google_keyword.trim()) {
-                                return searchPersonImages(s.google_keyword, { appendPhoto: false });
-                            }
-                            return searchPersonImages(s.keyword);
+                        entitySlides.map(({ s }) => {
+                            // entity_name tem prioridade (nome literal); google_keyword como fallback
+                            const query = (s.entity_name && s.entity_name.trim())
+                                ? s.entity_name.trim()
+                                : s.google_keyword.trim();
+                            return searchPersonImages(query, { appendPhoto: false });
                         })
                     );
                     let tavilyUsed = 0;
-                    personSlides.forEach(({ idx }, i) => {
+                    entitySlides.forEach(({ idx }, i) => {
                         const r = results[i];
                         if (r?.imagem_fundo) {
                             slidesForUnsplash[idx] = {
@@ -564,8 +564,10 @@ export class InstagramCarouselOrchestrator {
                             };
                             tavilyUsed++;
                         }
+                        // Se Tavily não retornou nada, o slide fica sem _tavilyImageUsed
+                        // e cai normalmente no Unsplash (ETAPA 12)
                     });
-                    logger.info(`[${this.traceId}] Tavily images used for ${tavilyUsed}/${personSlides.length} slides`);
+                    logger.info(`[${this.traceId}] Tavily images used for ${tavilyUsed}/${entitySlides.length} slides`);
                 }
             } catch (err) {
                 logger.warn(`[${this.traceId}] Tavily images step failed, falling back to Unsplash: ${err.message}`);
