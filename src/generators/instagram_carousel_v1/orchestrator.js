@@ -524,17 +524,30 @@ export class InstagramCarouselOrchestrator {
                 logger.warn(`[${this.traceId}] Google Images failed, continuing with Unsplash: ${err.message}`);
             }
 
-            // ETAPA 11.7: Tavily Images - busca imagens de PESSOAS (Unsplash performa mal para isso)
+            // ETAPA 11.7: Tavily Images - busca imagens de PESSOAS / ENTIDADES FAMOSAS
+            // (Unsplash performa mal para isso)
+            //   - Aciona se slide.google_keyword existe e Google não preencheu (entidade real)
+            //   - OU se a keyword genérica fala de pessoa (heurística PT/EN)
             try {
                 const { isPersonKeyword, searchPersonImages } = await import('../../../services/tavily-images.service.js');
                 const personSlides = slidesForUnsplash
                     .map((s, idx) => ({ s, idx }))
-                    .filter(({ s }) => !s._googleImageUsed && isPersonKeyword(s.keyword));
+                    .filter(({ s }) => {
+                        if (s._googleImageUsed) return false;
+                        if (s.google_keyword && s.google_keyword.trim()) return true;
+                        return isPersonKeyword(s.keyword);
+                    });
 
                 if (personSlides.length > 0) {
-                    logger.info(`[${this.traceId}] Fetching Tavily images for ${personSlides.length} person slides...`);
+                    logger.info(`[${this.traceId}] Fetching Tavily images for ${personSlides.length} person/entity slides...`);
                     const results = await Promise.all(
-                        personSlides.map(({ s }) => searchPersonImages(s.keyword))
+                        personSlides.map(({ s }) => {
+                            // Quando temos google_keyword (nome próprio), não anexamos "photo"
+                            if (s.google_keyword && s.google_keyword.trim()) {
+                                return searchPersonImages(s.google_keyword, { appendPhoto: false });
+                            }
+                            return searchPersonImages(s.keyword);
+                        })
                     );
                     let tavilyUsed = 0;
                     personSlides.forEach(({ idx }, i) => {
@@ -546,12 +559,13 @@ export class InstagramCarouselOrchestrator {
                                 imagem_fundo2: r.imagem_fundo2,
                                 imagem_fundo3: r.imagem_fundo3,
                                 tavily_attributions: r.tavily_attributions,
+                                image_source: 'tavily',
                                 _tavilyImageUsed: true,
                             };
                             tavilyUsed++;
                         }
                     });
-                    logger.info(`[${this.traceId}] Tavily images used for ${tavilyUsed}/${personSlides.length} person slides`);
+                    logger.info(`[${this.traceId}] Tavily images used for ${tavilyUsed}/${personSlides.length} slides`);
                 }
             } catch (err) {
                 logger.warn(`[${this.traceId}] Tavily images step failed, falling back to Unsplash: ${err.message}`);

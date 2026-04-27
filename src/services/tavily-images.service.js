@@ -47,6 +47,7 @@ function isLikelyImageUrl(url) {
  * @param {object} [opts]
  * @param {number} [opts.maxImages=3]
  * @param {number} [opts.timeoutMs]
+ * @param {boolean} [opts.appendPhoto=true] - se true, adiciona "photo" à query (útil para conceitos genéricos). Para nomes próprios, passar false.
  * @returns {Promise<{imagem_fundo: string|null, imagem_fundo2: string|null, imagem_fundo3: string|null, tavily_attributions: Array<{url:string, source?:string}>|null}>}
  */
 export async function searchPersonImages(keyword, opts = {}) {
@@ -64,7 +65,7 @@ export async function searchPersonImages(keyword, opts = {}) {
     }
     if (!keyword || !keyword.trim()) return empty;
 
-    const { maxImages = 3, timeoutMs = DEFAULT_TIMEOUT_MS } = opts;
+    const { maxImages = 3, timeoutMs = DEFAULT_TIMEOUT_MS, appendPhoto = true } = opts;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -77,7 +78,7 @@ export async function searchPersonImages(keyword, opts = {}) {
                 Authorization: `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
-                query: `${keyword.trim()} photo`,
+                query: appendPhoto ? `${keyword.trim()} photo` : keyword.trim(),
                 search_depth: 'basic',
                 topic: 'general',
                 include_answer: false,

@@ -270,6 +270,50 @@ export class NewsCarouselOrchestrator {
                 logger.warn(`[${this.traceId}] Google Images failed, continuing with Unsplash: ${err.message}`);
             }
 
+            // ETAPA 9.7: Tavily Images - busca imagens de PESSOAS / ENTIDADES FAMOSAS
+            // Aciona quando google_keyword existe (e Google não preencheu) ou keyword é de pessoa.
+            try {
+                const { isPersonKeyword, searchPersonImages } = await import('../../../services/tavily-images.service.js');
+                const personSlides = slidesForUnsplash
+                    .map((s, idx) => ({ s, idx }))
+                    .filter(({ s }) => {
+                        if (s._googleImageUsed) return false;
+                        if (s.google_keyword && s.google_keyword.trim()) return true;
+                        return isPersonKeyword(s.keyword);
+                    });
+
+                if (personSlides.length > 0) {
+                    logger.info(`[${this.traceId}] Fetching Tavily images for ${personSlides.length} person/entity slides...`);
+                    const results = await Promise.all(
+                        personSlides.map(({ s }) => {
+                            if (s.google_keyword && s.google_keyword.trim()) {
+                                return searchPersonImages(s.google_keyword, { appendPhoto: false });
+                            }
+                            return searchPersonImages(s.keyword);
+                        })
+                    );
+                    let tavilyUsed = 0;
+                    personSlides.forEach(({ idx }, i) => {
+                        const r = results[i];
+                        if (r?.imagem_fundo) {
+                            slidesForUnsplash[idx] = {
+                                ...slidesForUnsplash[idx],
+                                imagem_fundo: r.imagem_fundo,
+                                imagem_fundo2: r.imagem_fundo2,
+                                imagem_fundo3: r.imagem_fundo3,
+                                tavily_attributions: r.tavily_attributions,
+                                image_source: 'tavily',
+                                _tavilyImageUsed: true,
+                            };
+                            tavilyUsed++;
+                        }
+                    });
+                    logger.info(`[${this.traceId}] Tavily images used for ${tavilyUsed}/${personSlides.length} slides`);
+                }
+            } catch (err) {
+                logger.warn(`[${this.traceId}] Tavily images step failed, falling back to Unsplash: ${err.message}`);
+            }
+
             // ETAPA 10: Unsplash - busca imagens de fundo (pula slides que já têm Google Image)
             logger.info(`[${this.traceId}] Fetching background images from Unsplash...`);
             const slidesWithImages = await unsplashService.addBackgroundImages(slidesForUnsplash);
