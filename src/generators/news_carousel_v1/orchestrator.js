@@ -193,28 +193,6 @@ export class NewsCarouselOrchestrator {
                 logger.info(`[${this.traceId}] No news URLs available, skipping HTML scraping`);
             }
 
-            // ETAPA 5.5: Extrai imagens reais da matéria-fonte usando HTML BRUTO
-            // (o htmlScraper.scrape() remove <img> ao limpar; scrapeRaw preserva tudo)
-            let articleImages = [];
-            try {
-                const { extractArticleImagesLogged } = await import('../../services/articleImages.service.js');
-                for (const item of allNewsData) {
-                    if (!item?.url) continue;
-                    // Busca HTML bruto para ter og:image + <img> inline
-                    const rawHtml = await htmlScraperService.scrapeRaw(item.url);
-                    const source = rawHtml || item.htmlText || '';
-                    if (!source) continue;
-                    const { images } = extractArticleImagesLogged(source, item.url, this.traceId);
-                    for (const u of images) {
-                        if (!articleImages.includes(u)) articleImages.push(u);
-                    }
-                }
-                logger.info(`[${this.traceId}] Article images pool size: ${articleImages.length}`);
-            } catch (err) {
-                logger.warn(`[${this.traceId}] Article images extraction failed: ${err.message}`);
-            }
-            this._articleImages = articleImages;
-
             // ETAPA 6: Blueprint Generator - gera blueprint narrativo (42 chaves) a partir do HTML
             logger.info(`[${this.traceId}] Running blueprint generator to generate blueprint...`);
             let blueprint;
@@ -293,27 +271,17 @@ export class NewsCarouselOrchestrator {
             }
 
             // ============================================================
-            // ETAPA 9.7 — RELEVÂNCIA TEMÁTICA (sempre roda)
-            // Estratégia robusta: independente dos keywords gerados pelo
-            // KeywordAgent, sempre tenta encher TODOS os slides vazios com
-            // imagens REALMENTE relacionadas ao tema do carrossel.
-            //
-            // Pool A = imagens da matéria-fonte (og:image, <article> imgs)
-            // Pool B = imagens do tema central via Tavily (1 chamada)
-            // Pool C = imagens via Tavily da keyword do próprio slide
-            //         (só para slides ainda vazios após A+B)
-            //
-            // ORDEM DE PREFERÊNCIA por slide:
-            // - Slide 0 (capa): Pool A → Pool B
-            // - Demais slides:  Pool B → Pool A → Pool C → Unsplash
+            // ETAPA 9.7 — IMAGENS ESPECIAIS VIA TAVILY (sempre roda)
+            // Estratégia: 2 fontes apenas.
+            //   1. Tavily  → assunto principal + keyword por slide
+            //               (pessoas, notícias recentes, eventos reais)
+            //   2. Unsplash → fallback padrão para tudo que Tavily não cobre
             // ============================================================
-            logger.info(`[${this.traceId}] [VERSION:img-v3] Starting thematic image fill...`);
+            logger.info(`[${this.traceId}] [VERSION:img-v4] Starting Tavily image fill...`);
             try {
                 const { searchPersonImages } = await import('../../services/tavily-images.service.js');
 
-                const articlePool = Array.isArray(this._articleImages) ? [...this._articleImages] : [];
-
-                // Extrai assunto principal do blueprint para 1 query Tavily abrangente
+                // Query Tavily com o assunto central do carrossel (1 chamada)
                 const subjectQuery = (
                     validatedBlueprint?.tema_central ||
                     validatedBlueprint?.mensagem_principal ||
@@ -322,32 +290,17 @@ export class NewsCarouselOrchestrator {
 
                 let subjectPool = [];
                 if (subjectQuery) {
-                    logger.info(`[${this.traceId}] Tavily main subject query: "${subjectQuery}"`);
+                    logger.info(`[${this.traceId}] Tavily subject query: "${subjectQuery}"`);
                     try {
-                        const r = await searchPersonImages(subjectQuery, {
-                            appendPhoto: false,
-                            maxImages: 10,
-                        });
-                        const urls = [r?.imagem_fundo, r?.imagem_fundo2, r?.imagem_fundo3].filter(Boolean);
-                        // Tavily devolve só 3 nesse helper; tenta variantes adicionais
-                        const variantQueries = [];
-                        if (validatedBlueprint?.tema_central && validatedBlueprint?.gancho_de_abertura) {
-                            variantQueries.push(`${validatedBlueprint.tema_central} ${validatedBlueprint.gancho_de_abertura}`.slice(0, 200));
-                        }
-                        for (const vq of variantQueries) {
-                            const rv = await searchPersonImages(vq, { appendPhoto: false });
-                            for (const u of [rv?.imagem_fundo, rv?.imagem_fundo2, rv?.imagem_fundo3]) {
-                                if (u && !urls.includes(u)) urls.push(u);
-                            }
-                        }
-                        subjectPool = urls;
+                        const r = await searchPersonImages(subjectQuery, { appendPhoto: false, maxImages: 10 });
+                        subjectPool = [r?.imagem_fundo, r?.imagem_fundo2, r?.imagem_fundo3].filter(Boolean);
                         logger.info(`[${this.traceId}] Subject pool size: ${subjectPool.length}`);
                     } catch (err) {
                         logger.warn(`[${this.traceId}] Tavily subject search failed: ${err.message}`);
                     }
                 }
 
-                const isFilled = (s) => Boolean(s && (s._tavilyImageUsed || s._googleImageUsed || s._articleImageUsed));
+                const isFilled = (s) => Boolean(s && (s._tavilyImageUsed || s._googleImageUsed));
                 const usedUrls = new Set();
                 const takeFrom = (pool) => {
                     while (pool.length > 0) {
@@ -356,49 +309,31 @@ export class NewsCarouselOrchestrator {
                     }
                     return null;
                 };
-                const peek = (pool) => pool.find((u) => u && !usedUrls.has(u)) || null;
 
-                // 1) CAPA: prefere imagem do artigo; fallback para subject
-                if (slidesForUnsplash[0] && !isFilled(slidesForUnsplash[0])) {
-                    const cover = takeFrom(articlePool) || takeFrom(subjectPool);
-                    if (cover) {
-                        slidesForUnsplash[0] = {
-                            ...slidesForUnsplash[0],
-                            imagem_fundo: cover,
-                            imagem_fundo2: peek(articlePool) || peek(subjectPool) || null,
-                            imagem_fundo3: null,
-                            image_source: 'article',
-                            _articleImageUsed: true,
-                        };
-                        logger.info(`[${this.traceId}] Cover slide filled with: ${cover}`);
-                    }
-                }
-
-                // 2) DEMAIS SLIDES: prefere subject; depois article
-                let filled = slidesForUnsplash[0]?._articleImageUsed ? 1 : 0;
-                for (let i = 1; i < slidesForUnsplash.length; i++) {
-                    const s = slidesForUnsplash[i];
-                    if (isFilled(s)) continue;
-                    const url = takeFrom(subjectPool) || takeFrom(articlePool);
-                    if (!url) break; // pools esgotaram
+                // 1) Preenche slides com subject pool (reutiliza imagens do tema central)
+                let filled = 0;
+                for (let i = 0; i < slidesForUnsplash.length; i++) {
+                    if (isFilled(slidesForUnsplash[i])) continue;
+                    const url = takeFrom(subjectPool);
+                    if (!url) break;
                     slidesForUnsplash[i] = {
-                        ...s,
+                        ...slidesForUnsplash[i],
                         imagem_fundo: url,
                         imagem_fundo2: null,
                         imagem_fundo3: null,
-                        image_source: subjectPool.length >= 0 ? 'tavily-subject' : 'article',
-                        _articleImageUsed: true,
+                        image_source: 'tavily-subject',
+                        _tavilyImageUsed: true,
                     };
                     filled++;
                 }
-                logger.info(`[${this.traceId}] Thematic fill: ${filled}/${slidesForUnsplash.length} slides`);
+                logger.info(`[${this.traceId}] Tavily subject fill: ${filled}/${slidesForUnsplash.length} slides`);
 
-                // 3) Slides ainda vazios: Tavily da própria keyword (sem appendPhoto p/ não viesar)
+                // 2) Slides ainda sem imagem: Tavily pela keyword específica do slide
                 const remaining = slidesForUnsplash
                     .map((s, idx) => ({ s, idx }))
                     .filter(({ s }) => !isFilled(s) && s.keyword);
                 if (remaining.length > 0) {
-                    logger.info(`[${this.traceId}] Filling ${remaining.length} remaining slides via Tavily-keyword...`);
+                    logger.info(`[${this.traceId}] Filling ${remaining.length} slides via Tavily-keyword...`);
                     const results = await Promise.all(
                         remaining.map(({ s }) => searchPersonImages(s.keyword, { appendPhoto: false }))
                     );
@@ -413,7 +348,7 @@ export class NewsCarouselOrchestrator {
                                 imagem_fundo2: r.imagem_fundo2,
                                 imagem_fundo3: r.imagem_fundo3,
                                 tavily_attributions: r.tavily_attributions,
-                                image_source: 'tavily',
+                                image_source: 'tavily-keyword',
                                 _tavilyImageUsed: true,
                             };
                             tavilyKwUsed++;
@@ -421,8 +356,9 @@ export class NewsCarouselOrchestrator {
                     });
                     logger.info(`[${this.traceId}] Tavily-keyword filled ${tavilyKwUsed}/${remaining.length} slides`);
                 }
+                // Qualquer slide restante vai cair no Unsplash (ETAPA 10)
             } catch (err) {
-                logger.warn(`[${this.traceId}] Thematic image fill step failed: ${err.message}`, { stack: err.stack });
+                logger.warn(`[${this.traceId}] Tavily image fill failed: ${err.message}`, { stack: err.stack });
             }
 
             // ETAPA 10: Unsplash - busca imagens de fundo (pula slides que já têm Google Image)
