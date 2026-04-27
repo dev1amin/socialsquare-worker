@@ -193,6 +193,24 @@ export class NewsCarouselOrchestrator {
                 logger.info(`[${this.traceId}] No news URLs available, skipping HTML scraping`);
             }
 
+            // ETAPA 5.5: Extrai imagens reais da matéria-fonte (og:image, article images)
+            // Essas imagens serão usadas para slide capa + fallback de slides sobre entidades.
+            let articleImages = [];
+            try {
+                const { extractArticleImagesLogged } = await import('../../services/articleImages.service.js');
+                for (const item of allNewsData) {
+                    if (!item?.htmlText || !item?.url) continue;
+                    const { images } = extractArticleImagesLogged(item.htmlText, item.url, this.traceId);
+                    for (const u of images) {
+                        if (!articleImages.includes(u)) articleImages.push(u);
+                    }
+                }
+                logger.info(`[${this.traceId}] Article images pool size: ${articleImages.length}`);
+            } catch (err) {
+                logger.warn(`[${this.traceId}] Article images extraction failed: ${err.message}`);
+            }
+            this._articleImages = articleImages;
+
             // ETAPA 6: Blueprint Generator - gera blueprint narrativo (42 chaves) a partir do HTML
             logger.info(`[${this.traceId}] Running blueprint generator to generate blueprint...`);
             let blueprint;
@@ -244,7 +262,7 @@ export class NewsCarouselOrchestrator {
             // ETAPA 9.5: Google Images - busca imagens para entidades famosas (se configurado)
             let slidesForUnsplash = slidesWithKeywords;
             try {
-                const { googleImagesService } = await import('../../../services/googleImages.service.js');
+                    const { googleImagesService } = await import('../../services/googleImages.service.js');
                 if (googleImagesService.isConfigured()) {
                     const hasGoogleKeywords = slidesWithKeywords.some(s => s.google_keyword);
                     if (hasGoogleKeywords) {
@@ -273,7 +291,7 @@ export class NewsCarouselOrchestrator {
             // ETAPA 9.7: Tavily Images - busca imagens de PESSOAS / ENTIDADES FAMOSAS
             // Aciona quando google_keyword existe (e Google não preencheu) ou keyword é de pessoa.
             try {
-                const { isPersonKeyword, searchPersonImages } = await import('../../../services/tavily-images.service.js');
+                const { isPersonKeyword, searchPersonImages } = await import('../../services/tavily-images.service.js');
                 const personSlides = slidesForUnsplash
                     .map((s, idx) => ({ s, idx }))
                     .filter(({ s }) => {
@@ -312,6 +330,51 @@ export class NewsCarouselOrchestrator {
                 }
             } catch (err) {
                 logger.warn(`[${this.traceId}] Tavily images step failed, falling back to Unsplash: ${err.message}`);
+            }
+
+            // ETAPA 9.8: Aplica imagens da matéria-fonte (og:image / article inline images)
+            // Prioridade: capa (slide 0) sempre recebe a primeira imagem real;
+            // imagens restantes vão para slides com google_keyword que ainda estão sem imagem.
+            try {
+                const pool = Array.isArray(this._articleImages) ? [...this._articleImages] : [];
+                if (pool.length > 0) {
+                    const isFilled = (s) => Boolean(s && (s._tavilyImageUsed || s._googleImageUsed || s._articleImageUsed));
+
+                    // 1) Capa
+                    if (slidesForUnsplash[0] && !isFilled(slidesForUnsplash[0])) {
+                        const url = pool.shift();
+                        slidesForUnsplash[0] = {
+                            ...slidesForUnsplash[0],
+                            imagem_fundo: url,
+                            imagem_fundo2: pool[0] || null,
+                            imagem_fundo3: pool[1] || null,
+                            image_source: 'article',
+                            _articleImageUsed: true,
+                        };
+                        logger.info(`[${this.traceId}] Article image applied to cover slide`);
+                    }
+
+                    // 2) Slides com google_keyword ainda vazios
+                    let used = 1;
+                    for (let i = 1; i < slidesForUnsplash.length && pool.length > 0; i++) {
+                        const s = slidesForUnsplash[i];
+                        if (isFilled(s)) continue;
+                        if (!s.google_keyword) continue;
+                        const url = pool.shift();
+                        slidesForUnsplash[i] = {
+                            ...s,
+                            imagem_fundo: url,
+                            imagem_fundo2: pool[0] || null,
+                            imagem_fundo3: pool[1] || null,
+                            image_source: 'article',
+                            _articleImageUsed: true,
+                        };
+                        used++;
+                    }
+                    logger.info(`[${this.traceId}] Article images applied to ${used} slide(s)`);
+                }
+            } catch (err) {
+                logger.warn(`[${this.traceId}] Article images apply step failed: ${err.message}`);
             }
 
             // ETAPA 10: Unsplash - busca imagens de fundo (pula slides que já têm Google Image)

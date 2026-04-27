@@ -337,6 +337,10 @@ export class UnsplashService {
                     // Pula slides que já têm imagem da Tavily (pessoas)
                     logger.debug(`[unsplash] Slide ${i + 1} already has Tavily Image - skipping Unsplash`);
                     slidesWithImages.push(slide);
+                } else if (slide._articleImageUsed) {
+                    // Pula slides que já têm imagem da matéria-fonte
+                    logger.debug(`[unsplash] Slide ${i + 1} already has article image - skipping Unsplash`);
+                    slidesWithImages.push(slide);
                 } else {
                     // Busca no Unsplash
                     const images = await this.searchImages(slide.keyword);

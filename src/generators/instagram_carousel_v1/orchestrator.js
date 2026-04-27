@@ -498,7 +498,7 @@ export class InstagramCarouselOrchestrator {
             // ETAPA 11.5: Google Images - busca imagens para entidades famosas (se configurado)
             let slidesForUnsplash = slidesWithKeywords;
             try {
-                const { googleImagesService } = await import('../../../services/googleImages.service.js');
+                const { googleImagesService } = await import('../../services/googleImages.service.js');
                 if (googleImagesService.isConfigured()) {
                     const hasGoogleKeywords = slidesWithKeywords.some(s => s.google_keyword);
                     if (hasGoogleKeywords) {
@@ -529,7 +529,7 @@ export class InstagramCarouselOrchestrator {
             //   - Aciona se slide.google_keyword existe e Google não preencheu (entidade real)
             //   - OU se a keyword genérica fala de pessoa (heurística PT/EN)
             try {
-                const { isPersonKeyword, searchPersonImages } = await import('../../../services/tavily-images.service.js');
+                const { isPersonKeyword, searchPersonImages } = await import('../../services/tavily-images.service.js');
                 const personSlides = slidesForUnsplash
                     .map((s, idx) => ({ s, idx }))
                     .filter(({ s }) => {
@@ -569,6 +569,51 @@ export class InstagramCarouselOrchestrator {
                 }
             } catch (err) {
                 logger.warn(`[${this.traceId}] Tavily images step failed, falling back to Unsplash: ${err.message}`);
+            }
+
+            // ETAPA 11.8: Aplica imagens REAIS do(s) post(s) do Instagram (allImageUrls)
+            // Capa sempre recebe a primeira; demais imagens vão para slides com
+            // google_keyword ainda sem imagem.
+            try {
+                const pool = Array.isArray(allImageUrls)
+                    ? allImageUrls.filter((u) => typeof u === 'string' && /^https?:\/\//i.test(u)).slice(0)
+                    : [];
+                if (pool.length > 0) {
+                    const isFilled = (s) => Boolean(s && (s._tavilyImageUsed || s._googleImageUsed || s._articleImageUsed));
+
+                    if (slidesForUnsplash[0] && !isFilled(slidesForUnsplash[0])) {
+                        const url = pool.shift();
+                        slidesForUnsplash[0] = {
+                            ...slidesForUnsplash[0],
+                            imagem_fundo: url,
+                            imagem_fundo2: pool[0] || null,
+                            imagem_fundo3: pool[1] || null,
+                            image_source: 'instagram',
+                            _articleImageUsed: true,
+                        };
+                        logger.info(`[${this.traceId}] Instagram image applied to cover slide`);
+                    }
+
+                    let used = 1;
+                    for (let i = 1; i < slidesForUnsplash.length && pool.length > 0; i++) {
+                        const s = slidesForUnsplash[i];
+                        if (isFilled(s)) continue;
+                        if (!s.google_keyword) continue;
+                        const url = pool.shift();
+                        slidesForUnsplash[i] = {
+                            ...s,
+                            imagem_fundo: url,
+                            imagem_fundo2: pool[0] || null,
+                            imagem_fundo3: pool[1] || null,
+                            image_source: 'instagram',
+                            _articleImageUsed: true,
+                        };
+                        used++;
+                    }
+                    logger.info(`[${this.traceId}] Instagram images applied to ${used} slide(s)`);
+                }
+            } catch (err) {
+                logger.warn(`[${this.traceId}] Instagram images apply step failed: ${err.message}`);
             }
 
             // ETAPA 12: Unsplash - busca imagens de fundo (usa frames extraídos para slides de vídeo)
