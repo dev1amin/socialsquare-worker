@@ -92,8 +92,13 @@ DIRETRIZES DE ESCRITA
 SEMPRE GERE TITLE E SUBTITLE
 ━━━━━━━━━━━━━━━━━━━━━━
 
-Todos os slides devem ter OBRIGATORIAMENTE title E subtitle.
-Não omita o subtitle em nenhum slide — o sistema fará a fusão quando necessário.
+Para TODOS os slides, sem exceção, gere SEMPRE os dois campos:
+- "title": tese central ou evento principal (máximo 12 palavras)
+- "subtitle": aprofundamento, contexto ou consequência (mínimo 8 palavras)
+
+O runtime decide quais slides exibirão subtitle ao usuário.
+Não omita o subtitle mesmo quando a máscara indicar false — o worker
+utiliza esse conteúdo para enriquecer o title no slide final.
 
 ━━━━━━━━━━━━━━━━━━━━━━
 REGRAS ESTRUTURAIS (INVIOLÁVEIS)

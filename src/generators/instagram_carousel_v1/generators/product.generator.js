@@ -24,15 +24,18 @@ export class ProductGenerator {
             logger.debug(`[product] Original text length: ${originalText.length}, context length: ${contextText.length}`);
             
             const screenCount = input.screen_count || template.slides.length;
+            // extendedMask is used by the orchestrator AFTER generation to flatten title-only slides.
+            // We pass all-true to the model so it always generates both title and subtitle.
             const baseMask = template.slides.map(s => !!s.subtitle);
             const extendedMask = Array.from({ length: screenCount }, (_, i) => baseMask[i % baseMask.length]);
+            const allTrueMask = Array(screenCount).fill(true);
             const extendedTemplate = template.slides; // Real template for better rhythm/style
 
             const { system, user } = await PromptLoader.loadBoth('product', {
                 original_text: originalText,
                 context: contextText,
                 template_json: JSON.stringify(extendedTemplate),
-                slides_mask: JSON.stringify(extendedMask.map(() => true)), // modelo sempre gera subtitle
+                slides_mask: JSON.stringify(allTrueMask),
                 screen_count: screenCount,
             });
 
@@ -51,14 +54,7 @@ export class ProductGenerator {
             const result = JSON.parse(completion.choices[0].message.content);
             logger.debug(`Product generator created ${result.slides?.length || 0} slides`);
 
-            // Merge title+subtitle para slides onde o template não tem subtitle
-            const rawSlides = result.slides || [];
-            return rawSlides.map((slide, i) => {
-                if (!extendedMask[i] && slide.subtitle) {
-                    return { ...slide, title: `${slide.title} ${slide.subtitle}`, subtitle: null };
-                }
-                return slide;
-            });
+            return result.slides || [];
         } catch (error) {
             const err = new Error(`Product generator failed: ${error.message}`);
             err.stage = 'product_generator';

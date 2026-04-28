@@ -237,9 +237,23 @@ export class NewsCarouselOrchestrator {
                 { ...input, multifont }
             );
 
+            // ETAPA 8.5: Flatten title-only slides — merge title+subtitle for slides without subtitle in template
+            // GPT always generates both fields (slides_mask all-true); here we concatenate them for title-only slots.
+            const _baseMask = templateData.slides.map(s => !!s.subtitle);
+            const _extendedMask = Array.from({ length: slides.length }, (_, i) => _baseMask[i % _baseMask.length]);
+            const flattenedSlides = slides.map((slide, i) => {
+                if (_extendedMask[i]) return slide; // template has subtitle here — keep both fields
+                if (!slide.subtitle) return slide;  // GPT omitted subtitle — nothing to merge
+                const titleTrimmed = (slide.title || '').trim();
+                const sep = /[.!?:;]$/.test(titleTrimmed) ? ' ' : '. ';
+                const merged = [titleTrimmed, slide.subtitle.trim()].filter(Boolean).join(sep);
+                return { ...slide, title: merged, subtitle: undefined };
+            });
+            logger.info(`[${this.traceId}] Flattened ${flattenedSlides.filter((s, i) => !_extendedMask[i] && slides[i]?.subtitle).length} title-only slides`);
+
             // ETAPA 9: Keyword Agent - adiciona keywords para busca de imagens
             logger.info(`[${this.traceId}] Adding keywords for image search...`);
-            const slidesWithKeywords = await this.keywordAgent.addKeywords(slides, input);
+            const slidesWithKeywords = await this.keywordAgent.addKeywords(flattenedSlides, input);
 
             // ETAPA 9.5: Google Images - busca imagens para entidades famosas (se configurado)
             let slidesForUnsplash = slidesWithKeywords;

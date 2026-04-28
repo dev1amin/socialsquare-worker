@@ -37,17 +37,16 @@ PROIBICOES ABSOLUTAS
 - Proibido texto fora do JSON.
 
 ━━━━━━━━━━━━━━━━━━━━━━
-SLIDES SEM SUBTITLE (REGRA CRITICA)
+SEMPRE GERE TITLE E SUBTITLE
 ━━━━━━━━━━━━━━━━━━━━━━
 
-Quando a mascara indicar subtitle = false para um slide:
-- O TITLE deve ser AUTOSSUFICIENTE — conter a ideia COMPLETA do slide.
-- Inclua: tese central + contexto minimo + consequencia ou progressao real.
-- PROIBIDO title-teaser: frases curtas que apenas anunciam sem entregar conteudo.
-- O leitor deve ENTENDER o conteudo do slide SO pelo title.
-- Titulos puramente enigmaticos ou ganchos vazios sao INVALIDOS nesses slides.
-- BOM: "MC Ryan SP indiciado por sonegacao apos Receita cruzar 12 fontes de renda"
-- RUIM: "MC Ryan SP enfrenta reviravolta judicial" (vago, sem fato concreto)
+Para TODOS os slides, sem excecao, gere SEMPRE os dois campos:
+- "title": tese central ou evento principal (maximo 12 palavras)
+- "subtitle": aprofundamento, contexto ou consequencia (minimo 8 palavras)
+
+O runtime decide quais slides exibirao subtitle ao usuario.
+Nao omita o subtitle mesmo quando a mascara indicar false — o worker
+utiliza esse conteudo para enriquecer o title no slide final.
 
 ━━━━━━━━━━━━━━━━━━━━━━
 REGRAS ESTRUTURAIS (INVIOLAVEIS)
