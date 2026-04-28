@@ -342,6 +342,11 @@ export class UnsplashService {
                     logger.debug(`[unsplash] Slide ${i + 1} already has article image - skipping Unsplash`);
                     slidesWithImages.push(slide);
                 } else {
+                    // Log when a slide had an entity but Tavily/Google couldn't find an image —
+                    // helps diagnose why we're falling back to generic stock photos.
+                    if (slide.entity_name || slide.google_keyword) {
+                        logger.warn(`[unsplash] Slide ${i + 1} had entity "${slide.entity_name || slide.google_keyword}" but Tavily/Google found no image — falling back to Unsplash keyword "${slide.keyword}"`);
+                    }
                     // Busca no Unsplash
                     const images = await this.searchImages(slide.keyword);
                     slidesWithImages.push({ ...slide, ...images });

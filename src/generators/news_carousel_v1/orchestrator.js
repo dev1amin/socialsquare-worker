@@ -263,8 +263,18 @@ export class NewsCarouselOrchestrator {
             }
 
             // ETAPA 9: Keyword Agent - adiciona keywords para busca de imagens
+            // Pass a snippet of the article text as source_context so the model can extract
+            // entity names present in the article but not in the short slide title/subtitle.
             logger.info(`[${this.traceId}] Adding keywords for image search...`);
-            const slidesWithKeywords = await this.keywordAgent.addKeywords(processedSlides, input);
+            const _allHtmlSnippet = allNewsData
+                .map(item => item.htmlText || '')
+                .join('\n---\n')
+                .substring(0, 2500);
+            const slidesWithKeywords = await this.keywordAgent.addKeywords(processedSlides, {
+                ...input,
+                source_context: _allHtmlSnippet || undefined,
+                htmlText: _allHtmlSnippet || undefined,
+            });
 
             // ETAPA 9.5: Google Images - busca imagens para entidades famosas (se configurado)
             let slidesForUnsplash = slidesWithKeywords;

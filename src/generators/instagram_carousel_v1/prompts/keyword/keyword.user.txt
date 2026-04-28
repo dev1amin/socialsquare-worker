@@ -1,12 +1,16 @@
 Tema geral: {{theme}}
 Total de slides: {{slides_count}}
-
+{{source_context_section}}
 Slides atuais:
 ```json
 {{slides_json}}
 ```
 
-Adicione uma propriedade "keyword" (string em inglês) para cada slide. Retorne o resultado em formato JSON com a estrutura:
+Adicione uma propriedade "keyword" (string em inglês) para cada slide.
+Quando o slide ou o contexto da fonte mencionar nome próprio, adicione também "entity_name".
+Quando a entidade for globalmente famosa, adicione também "google_keyword".
+
+Retorne o resultado em formato JSON com a estrutura:
 
 ```json
 {
@@ -15,9 +19,13 @@ Adicione uma propriedade "keyword" (string em inglês) para cada slide. Retorne 
       "ordem": 1,
       "title": "...",
       "subtitle": "...",
-      "keyword": "coffee cup"
+      "keyword": "coffee cup morning routine",
+      "entity_name": "Nome Próprio Literal",
+      "google_keyword": "Famous Entity Name"
     },
     ...
   ]
 }
 ```
+
+Inclua "entity_name" e "google_keyword" apenas nos slides que os necessitam. Omita os campos ausentes.

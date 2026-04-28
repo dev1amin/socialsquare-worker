@@ -517,8 +517,23 @@ export class InstagramCarouselOrchestrator {
             }
 
             // ETAPA 11: Keyword Agent - adiciona keywords para busca de imagens
+            // Passes source_context so the model can extract entity names that may not
+            // appear in the short slide title/subtitle but are present in the source material.
             logger.info(`[${this.traceId}] Adding keywords for image search...`);
-            const slidesWithKeywords = await this.keywordAgent.addKeywords(processedSlides, input);
+            const _sourceContextParts = [];
+            if (Array.isArray(combinedSources)) {
+                for (const src of combinedSources) {
+                    if (src?.content && typeof src.content === 'string' && src.content.trim() && src.type !== 'research') {
+                        _sourceContextParts.push(src.content.trim());
+                    }
+                }
+            }
+            const _sourceContext = _sourceContextParts.join('\n---\n').substring(0, 2500);
+            const slidesWithKeywords = await this.keywordAgent.addKeywords(processedSlides, {
+                ...input,
+                source_context: _sourceContext || undefined,
+                combinedSources,
+            });
 
             // ETAPA 11.5: Google Images - busca imagens para entidades famosas (se configurado)
             let slidesForUnsplash = slidesWithKeywords;

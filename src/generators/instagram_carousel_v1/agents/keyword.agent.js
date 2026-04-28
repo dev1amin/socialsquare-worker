@@ -19,10 +19,19 @@ export class KeywordAgent {
 
             const theme = input?.topic || input?.content_type || 'general';
 
+            // Build source_context_section from available source material.
+            // This gives the model access to entity names that were in the original
+            // content but didn't make it into the short slide title/subtitle.
+            const rawContext = this._buildSourceContext(input);
+            const source_context_section = rawContext
+                ? `\nContexto da fonte original (use para identificar nomes próprios ausentes nos títulos):\n<source_context>\n${rawContext}\n</source_context>\n`
+                : '';
+
             const { system, user } = await PromptLoader.loadBoth('keyword', {
                 slides_json: JSON.stringify(slides),
                 slides_count: slides.length,
                 theme: theme,
+                source_context_section,
             });
 
             const completion = await openai.chat.completions.create({
@@ -49,5 +58,41 @@ export class KeywordAgent {
             err.retryable = error.code === 'rate_limit_exceeded';
             throw err;
         }
+    }
+
+    /**
+     * Extracts a compact source context string from the generation input.
+     * Priority: explicit source_context > combinedSources captions/articles > post_text > context.
+     * Capped at 2500 chars to keep prompt size reasonable.
+     */
+    _buildSourceContext(input) {
+        if (!input) return '';
+
+        // Explicitly provided by orchestrator (preferred)
+        if (input.source_context && typeof input.source_context === 'string') {
+            return input.source_context.substring(0, 2500);
+        }
+
+        const parts = [];
+
+        // Instagram captions / article texts from combinedSources
+        if (Array.isArray(input.combinedSources)) {
+            for (const src of input.combinedSources) {
+                if (src?.content && typeof src.content === 'string' && src.content.trim()) {
+                    // Skip pure research summaries (can confuse entity extraction)
+                    if (src.type === 'research') continue;
+                    parts.push(src.content.trim());
+                }
+            }
+        }
+
+        // Fallback: plain post text
+        if (parts.length === 0 && input.post_text) parts.push(input.post_text);
+        if (parts.length === 0 && input.article_text) parts.push(input.article_text);
+        // Last resort: user context (may still contain entity hints)
+        if (parts.length === 0 && input.context) parts.push(input.context);
+
+        const combined = parts.join('\n---\n');
+        return combined.substring(0, 2500);
     }
 }
