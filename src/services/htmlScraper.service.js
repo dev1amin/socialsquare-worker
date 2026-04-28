@@ -1,16 +1,23 @@
 import { logger } from '../config/logger.js';
 
+// Minimum usable text length. If the direct fetch yields less than this after
+// stripping tags, we assume it's a consent page / bot wall and fall back to Jina.
+const MIN_CONTENT_CHARS = 300;
+
 /**
  * HTML Scraper Service
- * Faz scraping de URLs de notícias com headers realistas
+ * Faz scraping de URLs de notícias com headers realistas.
+ * Fallback automático para Jina AI Reader quando o fetch direto é bloqueado (403,
+ * conteúdo vazio ou página de consentimento).
  */
 export class HtmlScraperService {
     /**
      * Faz scraping de uma URL e extrai o HTML limpo
      * @param {string} url - URL da notícia
-     * @returns {Promise<string>} HTML extraído e limpo
+     * @returns {Promise<string>} Texto extraído
      */
     async scrape(url) {
+        // 1. Try direct fetch
         try {
             logger.debug(`[html-scraper] Fetching URL: ${url}`);
 
@@ -31,7 +38,7 @@ export class HtmlScraperService {
                     'upgrade-insecure-requests': '1',
                     'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36'
                 },
-                timeout: 15000
+                signal: AbortSignal.timeout(15000),
             });
 
             if (!response.ok) {
@@ -39,16 +46,52 @@ export class HtmlScraperService {
             }
 
             const html = await response.text();
+            const cleanText = this._cleanHtml(html);
 
-            // Extrai conteúdo limpo (remove scripts, styles, etc)
-            const cleanHtml = this._cleanHtml(html);
+            if (cleanText.length >= MIN_CONTENT_CHARS) {
+                logger.debug(`[html-scraper] Direct fetch OK (${cleanText.length} chars)`);
+                return cleanText;
+            }
 
-            logger.debug(`[html-scraper] HTML fetched successfully (${cleanHtml.length} chars)`);
-            return cleanHtml;
-        } catch (error) {
-            logger.error(`[html-scraper] Failed to scrape ${url}:`, error.message);
-            throw new Error(`Failed to scrape URL: ${error.message}`);
+            logger.warn(`[html-scraper] Direct fetch returned too little content (${cleanText.length} chars) — falling back to Jina`);
+        } catch (directError) {
+            logger.warn(`[html-scraper] Direct fetch failed (${directError.message}) — falling back to Jina`);
         }
+
+        // 2. Fallback: Jina AI Reader (handles JS-rendered pages and bot walls)
+        return this._scrapeViaJina(url);
+    }
+
+    /**
+     * Uses Jina AI Reader (r.jina.ai) to extract clean text from a URL.
+     * Works for sites that block direct scraping (G1, Folha, etc.).
+     */
+    async _scrapeViaJina(url) {
+        const jinaUrl = `https://r.jina.ai/${url}`;
+        logger.info(`[html-scraper] Trying Jina reader: ${jinaUrl}`);
+
+        const response = await fetch(jinaUrl, {
+            headers: {
+                'Accept': 'text/plain',
+                'X-Return-Format': 'text',
+                'user-agent': 'Mozilla/5.0 (compatible; SocialSquareBot/1.0)',
+            },
+            signal: AbortSignal.timeout(25000),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Jina reader failed with HTTP ${response.status} for ${url}`);
+        }
+
+        const text = await response.text();
+        const trimmed = text.trim();
+
+        if (!trimmed || trimmed.length < MIN_CONTENT_CHARS) {
+            throw new Error(`Jina returned insufficient content (${trimmed.length} chars) for ${url}`);
+        }
+
+        logger.info(`[html-scraper] Jina reader OK (${trimmed.length} chars)`);
+        return trimmed;
     }
 
     /**
@@ -76,7 +119,7 @@ export class HtmlScraperService {
                     'upgrade-insecure-requests': '1',
                     'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36'
                 },
-                timeout: 15000
+                signal: AbortSignal.timeout(15000),
             });
             if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             return await response.text();
