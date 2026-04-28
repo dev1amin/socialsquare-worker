@@ -24,11 +24,8 @@ export class EducationalGenerator {
             logger.debug(`[educational] Original text length: ${originalText.length}, context length: ${contextText.length}`);
             
             const screenCount = input.screen_count || template.slides.length;
-            // extendedMask is used by the orchestrator AFTER generation to flatten title-only slides.
-            // We pass all-true to the model so it always generates both title and subtitle.
             const baseMask = template.slides.map(s => !!s.subtitle);
             const extendedMask = Array.from({ length: screenCount }, (_, i) => baseMask[i % baseMask.length]);
-            const allTrueMask = Array(screenCount).fill(true);
             const extendedTemplate = template.slides; // Real template for better rhythm/style
 
             const { system, user } = await PromptLoader.loadBoth('educational', {
@@ -36,7 +33,7 @@ export class EducationalGenerator {
                 original_text: originalText,
                 context: contextText,
                 template_json: JSON.stringify(extendedTemplate),
-                slides_mask: JSON.stringify(allTrueMask),
+                slides_mask: JSON.stringify(Array(screenCount).fill(true)),
                 screen_count: screenCount,
             });
 

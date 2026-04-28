@@ -1,0 +1,5 @@
+Slides para reescrever (apenas os title-only que precisam de compressão):
+
+{{slides_json}}
+
+Reescreva cada slide como um único title autossuficiente.

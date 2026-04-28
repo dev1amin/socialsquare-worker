@@ -12,6 +12,7 @@ import { BlueprintGeneratorAgent } from './agents/blueprintGenerator.agent.js';
 import { BlueprintValidatorAgent } from './agents/blueprintValidator.agent.js';
 import { ContentTypeRouter } from './routers/contentType.router.js';
 import { KeywordAgent } from './agents/keyword.agent.js';
+import { TitleSquashAgent } from './agents/titleSquash.agent.js';
 import { BrandAdapterAgent } from './agents/brandAdapter.agent.js';
 import { CTAValidatorAgent } from './agents/ctaValidator.agent.js';
 import { DescriptionAgent } from './agents/description.agent.js';
@@ -52,6 +53,7 @@ export class InstagramCarouselOrchestrator {
         this.blueprintValidator = new BlueprintValidatorAgent(tokenTracker);
         this.router = new ContentTypeRouter(tokenTracker);
         this.keywordAgent = new KeywordAgent(tokenTracker);
+        this.titleSquash = new TitleSquashAgent(tokenTracker);
         this.brandAdapter = new BrandAdapterAgent(tokenTracker);
         this.ctaValidator = new CTAValidatorAgent(tokenTracker);
         this.descriptionAgent = new DescriptionAgent(tokenTracker);
@@ -491,24 +493,32 @@ export class InstagramCarouselOrchestrator {
                 }
             );
 
-            // ETAPA 10.5: Flatten title-only slides — merge title+subtitle for slides without subtitle in template
-            // GPT always generates both fields (slides_mask all-true); here we concatenate them for title-only slots.
+            // ETAPA 10.5: TitleSquash — re-gera titles dos slides sem subtitle no template
+            // GPT gerou title+subtitle para todos; aqui reduzimos os slots title-only
+            // com uma segunda passagem inteligente (não concatenação mecânica).
             const _baseMask = templateData.slides.map(s => !!s.subtitle);
-            const _extendedMask = Array.from({ length: slides.length }, (_, i) => _baseMask[i % _baseMask.length]);
-            const flattenedSlides = slides.map((slide, i) => {
-                if (_extendedMask[i]) return slide; // template has subtitle here — keep both fields
-                if (!slide.subtitle) return slide;  // GPT omitted subtitle — nothing to merge
-                const titleTrimmed = (slide.title || '').trim();
-                const sep = /[.!?:;]$/.test(titleTrimmed) ? ' ' : '. ';
-                const merged = [titleTrimmed, slide.subtitle.trim()].filter(Boolean).join(sep);
-                return { ...slide, title: merged, subtitle: undefined };
-            });
-            logger.info(`[${this.traceId}] Flattened ${flattenedSlides.filter((s, i) => !_extendedMask[i] && slides[i]?.subtitle).length} title-only slides`);
-            const slidesResult = flattenedSlides;
+            const _titleOnlyCount = slides.filter((_, i) => !_baseMask[i % _baseMask.length]).length;
+            let processedSlides = slides;
+            if (_titleOnlyCount > 0) {
+                logger.info(`[${this.traceId}] TitleSquash: re-generating ${_titleOnlyCount} title-only slides...`);
+                try {
+                    processedSlides = await this.titleSquash.squash(slides, _baseMask);
+                    logger.info(`[${this.traceId}] TitleSquash: done`);
+                } catch (err) {
+                    logger.warn(`[${this.traceId}] TitleSquash failed, falling back to concat: ${err.message}`);
+                    processedSlides = slides.map((slide, i) => {
+                        if (_baseMask[i % _baseMask.length]) return slide;
+                        if (!slide.subtitle) return slide;
+                        const t = (slide.title || '').trim();
+                        const sep = /[.!?:;]$/.test(t) ? ' ' : '. ';
+                        return { ...slide, title: [t, slide.subtitle.trim()].filter(Boolean).join(sep), subtitle: undefined };
+                    });
+                }
+            }
 
             // ETAPA 11: Keyword Agent - adiciona keywords para busca de imagens
             logger.info(`[${this.traceId}] Adding keywords for image search...`);
-            const slidesWithKeywords = await this.keywordAgent.addKeywords(slidesResult, input);
+            const slidesWithKeywords = await this.keywordAgent.addKeywords(processedSlides, input);
 
             // ETAPA 11.5: Google Images - busca imagens para entidades famosas (se configurado)
             let slidesForUnsplash = slidesWithKeywords;

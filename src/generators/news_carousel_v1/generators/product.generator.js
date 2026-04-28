@@ -15,11 +15,8 @@ export class ProductGenerator {
     async generate(blueprint, htmlText, template, input) {
         try {
             const screenCount = input.screen_count || template.slides.length;
-            // extendedMask is used by the orchestrator AFTER generation to flatten title-only slides.
-            // We pass all-true to the model so it always generates both title and subtitle.
             const baseMask = template.slides.map(s => !!s.subtitle);
             const extendedMask = Array.from({ length: screenCount }, (_, i) => baseMask[i % baseMask.length]);
-            const allTrueMask = Array(screenCount).fill(true);
             // Pass real template slides so GPT sees actual rhythm, style and structure
             const extendedTemplate = template.slides;
 
@@ -27,7 +24,7 @@ export class ProductGenerator {
                 blueprint_json: JSON.stringify(blueprint),
                 context: input.context || '',
                 template_json: JSON.stringify(extendedTemplate),
-                slides_mask: JSON.stringify(allTrueMask),
+                slides_mask: JSON.stringify(Array(screenCount).fill(true)),
                 screen_count: screenCount,
                 news_text: htmlText ? htmlText.substring(0, 3000) : '',
             });
