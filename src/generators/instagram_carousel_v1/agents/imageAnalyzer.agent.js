@@ -24,8 +24,17 @@ export class ImageAnalyzerAgent {
         try {
             // Valida se tem imagens para analisar
             if (!imageUrls || imageUrls.length === 0) {
-                logger.warn('[image-analyzer] No images to analyze');
-                throw new Error('No images to analyze');
+                // Fallback defensivo: usa thumbnails de frames extraídos de vídeos
+                const frameThumbs = (metadata.extractedFrames || [])
+                    .filter(f => f.extractedThumbnailUrl)
+                    .map(f => f.extractedThumbnailUrl);
+                if (frameThumbs.length > 0) {
+                    logger.warn(`[image-analyzer] No static images; using ${frameThumbs.length} extracted video frame(s) as fallback`);
+                    imageUrls = frameThumbs;
+                } else {
+                    logger.warn('[image-analyzer] No images to analyze');
+                    throw new Error('No images to analyze');
+                }
             }
 
             logger.info('[image-analyzer] Starting image analysis', {

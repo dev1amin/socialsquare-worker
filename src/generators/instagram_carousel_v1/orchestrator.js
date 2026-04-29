@@ -105,18 +105,36 @@ export class InstagramCarouselOrchestrator {
     buildCombinedText(allRocketData, combinedSources, additionalTexts) {
         const parts = [];
         
-        // Parte 1: Captions do Instagram
-        // Nota: RocketAPI retorna { imageUrls, metadata: { caption: '...' } }
+        // Parte 1: Captions do Instagram com metadados do post/reel
         if (allRocketData && allRocketData.length > 0) {
             allRocketData.forEach((item, idx) => {
-                // Caption está em metadata.caption, não diretamente em data.caption
-                const caption = item.data?.metadata?.caption || item.data?.caption || '';
+                const meta = item.data?.metadata || {};
+                const caption = meta.caption || item.data?.caption || '';
+                const label = allRocketData.length > 1
+                    ? `FONTE INSTAGRAM ${idx + 1} - @${meta.username || item.code}`
+                    : 'CONTEÚDO PRINCIPAL INSTAGRAM';
+                
+                const metaLines = [];
+                if (meta.username) metaLines.push(`Criador: @${meta.username}${meta.full_name ? ` (${meta.full_name})` : ''}`);
+                const tipoMedia = [meta.media_type, meta.product_type].filter(Boolean).join(' / ');
+                if (tipoMedia) metaLines.push(`Tipo de mídia: ${tipoMedia}`);
+                if (meta.like_count != null) metaLines.push(`Curtidas: ${meta.like_count.toLocaleString('pt-BR')}`);
+                if (meta.comment_count != null) metaLines.push(`Comentários: ${meta.comment_count.toLocaleString('pt-BR')}`);
+                if (meta.play_count != null) metaLines.push(`Visualizações/plays: ${meta.play_count.toLocaleString('pt-BR')}`);
+                if (meta.slide_count != null) metaLines.push(`Slides: ${meta.slide_count} (${meta.image_count || 0} imagens, ${meta.video_count || 0} vídeos)`);
+                if (meta.location) metaLines.push(`Localização: ${meta.location}`);
+                if (meta.audio_title) metaLines.push(`Áudio/música: ${meta.audio_title}`);
+                if (meta.hashtags && meta.hashtags.length > 0) metaLines.push(`Hashtags: ${meta.hashtags.slice(0, 10).join(' ')}`);
+                
+                let part = `[${label}]`;
+                if (metaLines.length > 0) {
+                    part += '\n' + metaLines.join('\n');
+                }
                 if (caption) {
-                    if (allRocketData.length > 1) {
-                        parts.push(`[FONTE INSTAGRAM ${idx + 1} - @${item.data?.metadata?.username || item.code}]\n${caption}`);
-                    } else {
-                        parts.push(`[CONTEÚDO PRINCIPAL INSTAGRAM]\n${caption}`);
-                    }
+                    part += '\n\nLegenda:\n' + caption;
+                }
+                if (caption || metaLines.length > 0) {
+                    parts.push(part);
                 }
             });
         }
@@ -310,7 +328,21 @@ export class InstagramCarouselOrchestrator {
             // ETAPA 7: Image Analyzer - OCR + descrição visual (GPT-4O Vision)
             // Nota: Para múltiplas fontes, concatena todas as imagens
             logger.info(`[${this.traceId}] Analyzing images (OCR + visual description)...`);
-            const allImageUrls = allRocketData.flatMap(item => item.data?.imageUrls || []);
+            let allImageUrls = allRocketData.flatMap(item => item.data?.imageUrls || []);
+
+            // Mescla thumbnails de frames extraídos de vídeos (essencial para reels video-only)
+            if (extractedFrames.length > 0) {
+                const frameThumbs = extractedFrames
+                    .filter(f => f.extractedThumbnailUrl)
+                    .map(f => f.extractedThumbnailUrl);
+                if (frameThumbs.length > 0) {
+                    // Deduplica: evita duplicar se thumbnail estático já estiver em imageUrls
+                    const combined = [...allImageUrls, ...frameThumbs];
+                    allImageUrls = [...new Set(combined)];
+                    logger.info(`[${this.traceId}] Image urls: ${allImageUrls.length} total (${allImageUrls.length - frameThumbs.length} static + ${frameThumbs.length} video frames)`);
+                }
+            }
+
             const imageAnalysis = await this.imageAnalyzer.analyze({
                 imageUrls: allImageUrls,
                 metadata: {

@@ -38,7 +38,6 @@ export class BlueprintGeneratorAgent {
             // NOVO: Monta conteúdo enriquecido com textos adicionais
             let enrichedContent = JSON.stringify(imageAnalysis);
             
-            // Se tiver textos adicionais, adiciona ao prompt
             if (additionalTexts.length > 0 || combinedSources.length > 0 || context) {
                 const additionalInfo = [];
                 
@@ -47,7 +46,22 @@ export class BlueprintGeneratorAgent {
                     additionalInfo.push(`\n\n=== CONTEXTO/INSTRUÇÕES DO USUÁRIO ===\n${context}`);
                 }
                 
-                // Adiciona textos de fontes adicionais
+                // Adiciona fontes combinadas (captions, metadados do Instagram, pesquisa web)
+                if (combinedSources.length > 0) {
+                    additionalInfo.push(`\n\n=== FONTES DE CONTEÚDO ===`);
+                    combinedSources.forEach((src) => {
+                        if (src.content && src.content.trim()) {
+                            const label = src.type === 'instagram'
+                                ? `INSTAGRAM${src.code ? ` (${src.code})` : ''}`
+                                : src.type === 'research' ? 'PESQUISA WEB'
+                                : src.type === 'additional_url' ? `URL ADICIONAL ${src.index || ''}`
+                                : src.type.toUpperCase();
+                            additionalInfo.push(`\n--- ${label} ---\n${src.content.substring(0, 4000)}${src.content.length > 4000 ? '...(truncado)' : ''}`);
+                        }
+                    });
+                }
+                
+                // Adiciona textos de fontes adicionais (URLs externas)
                 if (additionalTexts.length > 0) {
                     additionalInfo.push(`\n\n=== CONTEÚDOS ADICIONAIS (para incorporar no carrossel) ===`);
                     additionalTexts.forEach((text, idx) => {
@@ -57,9 +71,8 @@ export class BlueprintGeneratorAgent {
                     });
                 }
                 
-                // Log para debug
-                if (additionalTexts.length > 0) {
-                    logger.info(`[analyzer] Including ${additionalTexts.length} additional texts in blueprint generation`);
+                if (additionalTexts.length > 0 || combinedSources.length > 0) {
+                    logger.info(`[analyzer] Including ${combinedSources.length} combined sources + ${additionalTexts.length} additional texts`);
                 }
                 
                 enrichedContent += additionalInfo.join('\n');

@@ -112,11 +112,28 @@ export class RocketAPIClient {
             // Metadata adicional
             const firstItem = body.items[0];
             const postUser = firstItem.user || firstItem.caption?.user || {};
+            const captionText = firstItem.caption?.text || '';
+
+            // Extrai hashtags da legenda
+            const hashtagMatches = captionText.match(/#[^\s#]+/g) || [];
+
+            // Extrai título de áudio/música para reels
+            const audioTitle = firstItem.music_metadata?.music_info?.music_asset_info?.title
+                || firstItem.clips_metadata?.audio_type
+                || firstItem.original_sound_info?.original_sound_title
+                || null;
+
             const metadata = {
                 shortcode,
-                caption: firstItem.caption?.text || '',
+                caption: captionText,
                 like_count: firstItem.like_count || 0,
                 comment_count: firstItem.comment_count || 0,
+                play_count: firstItem.play_count ?? firstItem.view_count ?? null,
+                product_type: firstItem.product_type || null,
+                taken_at: firstItem.taken_at || null,
+                location: firstItem.location?.name || null,
+                audio_title: audioTitle,
+                hashtags: hashtagMatches,
                 media_type: firstItem.carousel_media ? 'carousel' : 'single',
                 slide_count: slides.length,
                 image_count: imageUrls.length,
