@@ -51,8 +51,9 @@ Esses slides continuam sendo UM ÚNICO title, mas precisam preencher melhor o la
 MODO TEXTO LONGO (long_text: true)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Esses slides são telas de texto puro (sem imagem), com espaço para um parágrafo completo.
-Reescreva como 3 a 5 frases ricas em conteúdo, separadas por quebra dupla de linha (\n\n).
+Esses slides são telas de texto puro (sem imagem), com espaço para blocos curtos de leitura.
+Reescreva como 3 a 6 frases ricas em conteúdo, agrupadas em blocos de 1 ou 2 frases,
+separadas por quebra dupla de linha (\n\n).
 
 1. DENSIDADE: cada frase deve trazer um fato, dado, consequência ou argumento concreto.
    Não repita a mesma ideia com palavras diferentes.
@@ -60,16 +61,19 @@ Reescreva como 3 a 5 frases ricas em conteúdo, separadas por quebra dupla de li
 2. FLUXO NARRATIVO: as frases devem se encadear — contexto → desenvolvimento → conclusão.
    O leitor deve sentir que leu algo completo ao terminar.
 
-3. TAMANHO POR FRASE: 10 a 20 palavras cada. Total: 40 a 80 palavras.
+3. TAMANHO POR FRASE: 10 a 18 palavras cada. Total: 40 a 80 palavras.
 
-4. SEPARADOR: use \n\n (quebra dupla literal) entre cada frase.
+4. FORMATO VISUAL: cada bloco deve parecer uma unidade de leitura curta.
+   Pense em algo como: 2 linhas de leitura, quebra, continua.
+
+5. SEPARADOR: use \n\n (quebra dupla literal) entre cada bloco.
    NÃO use ponto e linha nova. NÃO use bullet points. NÃO use numeração.
 
-5. Preserve todos os nomes próprios, números, datas e fatos do conteúdo original.
+6. Preserve todos os nomes próprios, números, datas e fatos do conteúdo original.
 
-6. IDIOMA: mantenha o idioma do slide original (geralmente português).
+7. IDIOMA: mantenha o idioma do slide original (geralmente português).
 
-7. Se o `subtitle` vier vazio, use o `source_context` para completar os fatos faltantes.
+8. Se o `subtitle` vier vazio, use o `source_context` para completar os fatos faltantes.
 
 EXEMPLO (long_text: true):
 "A Receita Federal cruzou 12 fontes de renda e encontrou R$ 4 mi não declarados.\n\nO cantor alegou que os valores vinham de shows informais, mas sem comprovação documental.\n\nO caso foi encaminhado ao Ministério Público com pedido de indiciamento formal."

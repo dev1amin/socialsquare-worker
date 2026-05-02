@@ -13,6 +13,34 @@ export class TitleSquashAgent {
         this.tokenTracker = tokenTracker;
     }
 
+    formatLongTextParagraphs(text, originalSlide) {
+        const normalized = String(text || '')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+
+        const explicitParagraphs = normalized
+            .split(/\n{2,}/)
+            .map(part => part.trim())
+            .filter(Boolean);
+
+        const sourceParagraphs = explicitParagraphs.length > 1
+            ? explicitParagraphs
+            : normalized.split(/(?<=[.!?])\s+/).map(part => part.trim()).filter(Boolean);
+
+        const compactParagraphs = [];
+        for (let index = 0; index < sourceParagraphs.length; index += 2) {
+            compactParagraphs.push(sourceParagraphs.slice(index, index + 2).join(' ').trim());
+        }
+
+        const paragraphs = compactParagraphs.filter(Boolean);
+        if (paragraphs.length > 0) return paragraphs.join('\n\n').trim();
+
+        const fallbackTitle = (originalSlide?.title || '').trim();
+        const fallbackSubtitle = (originalSlide?.subtitle || '').trim();
+        return [fallbackTitle, fallbackSubtitle].filter(Boolean).join('\n\n').trim();
+    }
+
     normalizeTitleOutput(title, originalSlide, { longText = false, denseTitle = false } = {}) {
         const normalized = String(title || '')
             .replace(/<br\s*\/?>/gi, '\n')
@@ -33,14 +61,7 @@ export class TitleSquashAgent {
         }
 
         if (longText) {
-            if (normalized.includes('\n\n')) return normalized;
-            const sentences = normalized.split(/(?<=[.!?])\s+/).filter(Boolean);
-            if (sentences.length > 1) return sentences.join('\n\n').trim();
-            const fallbackSubtitle = (originalSlide?.subtitle || '').trim();
-            if (fallbackSubtitle) {
-                return [normalized, fallbackSubtitle].filter(Boolean).join('\n\n').trim();
-            }
-            return normalized;
+            return this.formatLongTextParagraphs(normalized, originalSlide);
         }
 
         if (denseTitle) {
