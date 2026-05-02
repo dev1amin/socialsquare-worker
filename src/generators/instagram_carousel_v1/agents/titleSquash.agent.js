@@ -13,7 +13,7 @@ export class TitleSquashAgent {
         this.tokenTracker = tokenTracker;
     }
 
-    async squash(slides, baseMask) {
+    async squash(slides, baseMask, longTextIndices = new Set()) {
         // Identify title-only slots where GPT generated a subtitle but template doesn't use it
         const titleOnlySlides = slides
             .map((s, i) => ({ s, i }))
@@ -27,6 +27,7 @@ export class TitleSquashAgent {
             index: i,
             title: s.title,
             subtitle: s.subtitle,
+            long_text: longTextIndices.has(i),
         }));
 
         const { system, user } = await PromptLoader.loadBoth('titleSquash', {

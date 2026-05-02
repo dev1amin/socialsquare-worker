@@ -244,11 +244,16 @@ export class NewsCarouselOrchestrator {
             // com uma segunda passagem inteligente (não concatenação mecânica).
             const _baseMask = templateData.slides.map(s => !!s.subtitle);
             const _titleOnlyCount = slides.filter((_, i) => !_baseMask[i % _baseMask.length]).length;
+            // Templates com slides de texto puro (sem imagem) que precisam de parágrafos longos
+            const LONG_TEXT_SLIDE_CONFIG = {
+                'Template 1': new Set([5, 7]),
+            };
+            const _longTextIndices = LONG_TEXT_SLIDE_CONFIG[templateName] || new Set();
             let processedSlides = slides;
             if (_titleOnlyCount > 0) {
                 logger.info(`[${this.traceId}] TitleSquash: re-generating ${_titleOnlyCount} title-only slides...`);
                 try {
-                    processedSlides = await this.titleSquash.squash(slides, _baseMask);
+                    processedSlides = await this.titleSquash.squash(slides, _baseMask, _longTextIndices);
                     logger.info(`[${this.traceId}] TitleSquash: done`);
                 } catch (err) {
                     logger.warn(`[${this.traceId}] TitleSquash failed, falling back to concat: ${err.message}`);
