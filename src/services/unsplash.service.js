@@ -304,6 +304,15 @@ export class UnsplashService {
         const slidesWithImages = [];
         const delayBetweenSearches = 500; // 500ms entre cada busca para evitar rate limit
 
+        // Rastreia URLs de imagem principal já usadas para garantir unicidade entre slides.
+        // Pré-popula com imagens já atribuídas por fontes externas (Tavily, Google, artigo).
+        const usedMainImages = new Set(
+            slides
+                .filter(s => s._googleImageUsed || s._tavilyImageUsed || s._articleImageUsed)
+                .map(s => s.imagem_fundo)
+                .filter(Boolean)
+        );
+
         // Processa slides SEQUENCIALMENTE para evitar rate limit
         for (let i = 0; i < slides.length; i++) {
             const slide = slides[i];
@@ -316,9 +325,13 @@ export class UnsplashService {
                 if (!videoUrl && !thumbnailUrl) {
                     logger.warn(`[unsplash] Slide ${i + 1} video extraction failed - falling back to Unsplash`);
                     const images = await this.searchImages(slide.keyword);
-                    slidesWithImages.push({ ...slide, ...images });
+                    const candidates = [images.imagem_fundo, images.imagem_fundo2, images.imagem_fundo3].filter(Boolean);
+                    const mainImage = candidates.find(url => !usedMainImages.has(url)) ?? images.imagem_fundo;
+                    if (mainImage) usedMainImages.add(mainImage);
+                    slidesWithImages.push({ ...slide, ...images, imagem_fundo: mainImage });
                 } else {
                     logger.debug(`[unsplash] Slide ${i + 1} is video - using extracted video`);
+                    if (thumbnailUrl) usedMainImages.add(thumbnailUrl);
                     slidesWithImages.push({
                         ...slide,
                         video_url: videoUrl,
@@ -347,9 +360,12 @@ export class UnsplashService {
                     if (slide.entity_name || slide.google_keyword) {
                         logger.warn(`[unsplash] Slide ${i + 1} had entity "${slide.entity_name || slide.google_keyword}" but Tavily/Google found no image — falling back to Unsplash keyword "${slide.keyword}"`);
                     }
-                    // Busca no Unsplash
+                    // Busca no Unsplash e seleciona a primeira imagem principal ainda não usada
                     const images = await this.searchImages(slide.keyword);
-                    slidesWithImages.push({ ...slide, ...images });
+                    const candidates = [images.imagem_fundo, images.imagem_fundo2, images.imagem_fundo3].filter(Boolean);
+                    const mainImage = candidates.find(url => !usedMainImages.has(url)) ?? images.imagem_fundo;
+                    if (mainImage) usedMainImages.add(mainImage);
+                    slidesWithImages.push({ ...slide, ...images, imagem_fundo: mainImage });
                 }
             }
 
