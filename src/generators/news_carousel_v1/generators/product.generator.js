@@ -24,7 +24,7 @@ export class ProductGenerator {
                 blueprint_json: JSON.stringify(blueprint),
                 context: input.context || '',
                 template_json: JSON.stringify(extendedTemplate),
-                slides_mask: JSON.stringify(Array(screenCount).fill(true)),
+                slides_mask: JSON.stringify(extendedMask),
                 screen_count: screenCount,
                 news_text: htmlText ? htmlText.substring(0, 3000) : '',
             });

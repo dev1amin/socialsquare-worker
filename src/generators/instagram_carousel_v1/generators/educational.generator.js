@@ -33,7 +33,7 @@ export class EducationalGenerator {
                 original_text: originalText,
                 context: contextText,
                 template_json: JSON.stringify(extendedTemplate),
-                slides_mask: JSON.stringify(Array(screenCount).fill(true)),
+                slides_mask: JSON.stringify(extendedMask),
                 screen_count: screenCount,
             });
 
