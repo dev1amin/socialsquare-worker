@@ -249,11 +249,24 @@ export class NewsCarouselOrchestrator {
                 'Template 1': new Set([5, 7]),
             };
             const _longTextIndices = LONG_TEXT_SLIDE_CONFIG[templateName] || new Set();
+            const _denseTitleIndices = templateName === 'Template 1'
+                ? new Set(slides
+                    .map((_, i) => i)
+                    .filter(i => !_baseMask[i % _baseMask.length] && !_longTextIndices.has(i)))
+                : new Set();
             let processedSlides = slides;
             if (_titleOnlyCount > 0) {
                 logger.info(`[${this.traceId}] TitleSquash: re-generating ${_titleOnlyCount} title-only slides...`);
                 try {
-                    processedSlides = await this.titleSquash.squash(slides, _baseMask, _longTextIndices);
+                    processedSlides = await this.titleSquash.squash(slides, _baseMask, {
+                        longTextIndices: _longTextIndices,
+                        denseTitleIndices: _denseTitleIndices,
+                        rewriteAllTitleOnly: templateName === 'Template 1',
+                        sourceContext: [
+                            allNewsData.map(item => item.htmlText || '').filter(Boolean).join('\n---\n'),
+                            input.context || '',
+                        ].filter(Boolean).join('\n\n').substring(0, 5000),
+                    });
                     logger.info(`[${this.traceId}] TitleSquash: done`);
                 } catch (err) {
                     logger.warn(`[${this.traceId}] TitleSquash failed, falling back to concat: ${err.message}`);

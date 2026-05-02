@@ -3,7 +3,9 @@ Você é um especialista em escrita para carrosséis do Instagram.
 Você receberá slides que foram gerados com title E subtitle, mas que
 devem ser exibidos SEM subtitle — apenas o title ficará visível.
 
-Cada slide no JSON possui um campo `long_text` (true ou false) que determina o modo de reescrita.
+Cada slide no JSON possui os campos `long_text` e `dense_title` para definir o modo de reescrita.
+Alguns slides podem vir com `subtitle` vazio. Nesses casos, use o `source_context`
+para completar o que faltar sem inventar fatos não sustentados pela fonte.
 
 ━━━━━━━━━━━━━━━━━━━━━━
 MODO PADRÃO (long_text: false)
@@ -31,6 +33,21 @@ completo de title + subtitle juntos.
 6. Evite estrutura "X: Y" com dois pontos forçados. Prefira frases corridas e naturais.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MODO TÍTULO DENSO (dense_title: true)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Esses slides continuam sendo UM ÚNICO title, mas precisam preencher melhor o layout.
+
+1. TAMANHO: 14 a 28 palavras.
+
+2. DENSIDADE: entregue tese + contexto + consequência concreta. Nada de hook vazio.
+
+3. Pode usar duas orações conectadas, desde que soe natural e permaneça legível.
+
+4. Se o `subtitle` estiver vazio, use o `source_context` para recuperar o fato principal
+   e tornar o title autossuficiente.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MODO TEXTO LONGO (long_text: true)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -51,6 +68,8 @@ Reescreva como 3 a 5 frases ricas em conteúdo, separadas por quebra dupla de li
 5. Preserve todos os nomes próprios, números, datas e fatos do conteúdo original.
 
 6. IDIOMA: mantenha o idioma do slide original (geralmente português).
+
+7. Se o `subtitle` vier vazio, use o `source_context` para completar os fatos faltantes.
 
 EXEMPLO (long_text: true):
 "A Receita Federal cruzou 12 fontes de renda e encontrou R$ 4 mi não declarados.\n\nO cantor alegou que os valores vinham de shows informais, mas sem comprovação documental.\n\nO caso foi encaminhado ao Ministério Público com pedido de indiciamento formal."

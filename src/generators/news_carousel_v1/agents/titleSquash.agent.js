@@ -13,11 +13,63 @@ export class TitleSquashAgent {
         this.tokenTracker = tokenTracker;
     }
 
-    async squash(slides, baseMask, longTextIndices = new Set()) {
+    normalizeTitleOutput(title, originalSlide, { longText = false, denseTitle = false } = {}) {
+        const normalized = String(title || '')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+
+        if (!normalized) {
+            const fallbackTitle = (originalSlide?.title || '').trim();
+            const fallbackSubtitle = (originalSlide?.subtitle || '').trim();
+            if (longText && fallbackSubtitle) {
+                return [fallbackTitle, fallbackSubtitle].filter(Boolean).join('\n\n').trim();
+            }
+            if (fallbackSubtitle) {
+                const separator = /[.!?:;]$/.test(fallbackTitle) ? ' ' : '. ';
+                return [fallbackTitle, fallbackSubtitle].filter(Boolean).join(separator).trim();
+            }
+            return fallbackTitle;
+        }
+
+        if (longText) {
+            if (normalized.includes('\n\n')) return normalized;
+            const sentences = normalized.split(/(?<=[.!?])\s+/).filter(Boolean);
+            if (sentences.length > 1) return sentences.join('\n\n').trim();
+            const fallbackSubtitle = (originalSlide?.subtitle || '').trim();
+            if (fallbackSubtitle) {
+                return [normalized, fallbackSubtitle].filter(Boolean).join('\n\n').trim();
+            }
+            return normalized;
+        }
+
+        if (denseTitle) {
+            const wordCount = normalized.split(/\s+/).filter(Boolean).length;
+            const fallbackSubtitle = (originalSlide?.subtitle || '').trim();
+            if (wordCount < 10 && fallbackSubtitle) {
+                const separator = /[.!?:;]$/.test(normalized) ? ' ' : '. ';
+                return [normalized, fallbackSubtitle].filter(Boolean).join(separator).trim();
+            }
+        }
+
+        return normalized;
+    }
+
+    async squash(slides, baseMask, options = {}) {
+        const {
+            longTextIndices = new Set(),
+            denseTitleIndices = new Set(),
+            rewriteAllTitleOnly = false,
+            sourceContext = '',
+        } = options;
+
         // Identify title-only slots where GPT generated a subtitle but template doesn't use it
         const titleOnlySlides = slides
             .map((s, i) => ({ s, i }))
-            .filter(({ s, i }) => !baseMask[i % baseMask.length] && s.subtitle);
+            .filter(({ s, i }) => {
+                if (baseMask[i % baseMask.length]) return false;
+                return rewriteAllTitleOnly || !!s.subtitle || longTextIndices.has(i) || denseTitleIndices.has(i);
+            });
 
         if (titleOnlySlides.length === 0) return slides;
 
@@ -25,13 +77,16 @@ export class TitleSquashAgent {
 
         const payload = titleOnlySlides.map(({ s, i }) => ({
             index: i,
-            title: s.title,
-            subtitle: s.subtitle,
+            title: s.title || '',
+            subtitle: s.subtitle || '',
             long_text: longTextIndices.has(i),
+            dense_title: denseTitleIndices.has(i),
         }));
+        const originalByIndex = new Map(titleOnlySlides.map(({ s, i }) => [i, s]));
 
         const { system, user } = await PromptLoader.loadBoth('titleSquash', {
             slides_json: JSON.stringify(payload, null, 2),
+            source_context: sourceContext || '',
         });
 
         const completion = await openai.chat.completions.create({
@@ -54,7 +109,15 @@ export class TitleSquashAgent {
         const output = [...slides];
         for (const { index, title } of squashed) {
             if (typeof index === 'number' && typeof title === 'string' && title.trim()) {
-                output[index] = { ...output[index], title: title.trim(), subtitle: undefined };
+                const originalSlide = originalByIndex.get(index) || output[index];
+                output[index] = {
+                    ...output[index],
+                    title: this.normalizeTitleOutput(title, originalSlide, {
+                        longText: longTextIndices.has(index),
+                        denseTitle: denseTitleIndices.has(index),
+                    }),
+                    subtitle: undefined,
+                };
             }
         }
 

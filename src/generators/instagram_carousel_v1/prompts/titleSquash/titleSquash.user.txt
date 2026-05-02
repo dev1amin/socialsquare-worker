@@ -2,4 +2,8 @@ Slides para reescrever (apenas os title-only que precisam de compressão):
 
 {{slides_json}}
 
+CONTEXTO FONTE (use apenas para completar o que faltar, mantendo precisão factual):
+
+{{source_context}}
+
 Reescreva cada slide como um único title autossuficiente.
