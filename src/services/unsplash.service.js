@@ -1,6 +1,40 @@
 import { logger } from '../config/logger.js';
 import { config } from '../config/env.js';
 
+const STOP_WORDS = new Set(['a', 'an', 'and', 'for', 'in', 'of', 'on', 'the', 'to', 'with']);
+const PEOPLE_TERMS = new Set([
+    'advisor',
+    'analyst',
+    'athlete',
+    'ceo',
+    'coach',
+    'consultant',
+    'creator',
+    'designer',
+    'doctor',
+    'engineer',
+    'entrepreneur',
+    'expert',
+    'founder',
+    'freelancer',
+    'influencer',
+    'leader',
+    'manager',
+    'marketer',
+    'mentor',
+    'person',
+    'people',
+    'photographer',
+    'portrait',
+    'professional',
+    'speaker',
+    'student',
+    'teacher',
+    'team',
+    'woman',
+    'man',
+]);
+
 /**
  * Unsplash Service
  * Busca imagens no Unsplash baseado em keywords
@@ -95,6 +129,142 @@ export class UnsplashService {
      */
     _delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    _normalizeKeyword(keyword) {
+        return String(keyword || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    _buildRelatedKeywordCandidates(keyword) {
+        const normalized = this._normalizeKeyword(keyword);
+        if (!normalized) return [];
+
+        const words = normalized.split(' ').filter(Boolean);
+        const significantWords = words.filter((word) => !STOP_WORDS.has(word));
+        const baseWords = significantWords.length > 0 ? significantWords : words;
+        const variants = [];
+
+        const pushVariant = (value) => {
+            const normalizedValue = this._normalizeKeyword(value);
+            if (!normalizedValue || variants.includes(normalizedValue)) return;
+            variants.push(normalizedValue);
+        };
+
+        pushVariant(normalized);
+
+        if (baseWords.length >= 2) {
+            pushVariant(baseWords.slice(0, 2).join(' '));
+            pushVariant(baseWords.slice(-2).join(' '));
+        }
+
+        if (baseWords.length >= 3) {
+            pushVariant(baseWords.slice(0, 3).join(' '));
+            pushVariant(baseWords.slice(-3).join(' '));
+        }
+
+        const subject = baseWords.slice(0, Math.min(baseWords.length, 2)).join(' ');
+        const hasPeopleTerm = baseWords.some((word) => PEOPLE_TERMS.has(word));
+
+        if (subject) {
+            if (hasPeopleTerm) {
+                pushVariant(`${subject} portrait`);
+                pushVariant(`${subject} professional`);
+                pushVariant(`${subject} lifestyle`);
+            } else {
+                pushVariant(`${subject} concept`);
+                pushVariant(`${subject} background`);
+                pushVariant(`${subject} illustration`);
+            }
+        }
+
+        if (baseWords.length === 1) {
+            pushVariant(`${baseWords[0]} concept`);
+        }
+
+        return variants;
+    }
+
+    _collectImageCandidates(result) {
+        return [
+            {
+                field: 'imagem_fundo',
+                url: result?.imagem_fundo || null,
+                attribution: result?.unsplash_attributions?.imagem_fundo || null,
+            },
+            {
+                field: 'imagem_fundo2',
+                url: result?.imagem_fundo2 || null,
+                attribution: result?.unsplash_attributions?.imagem_fundo2 || null,
+            },
+            {
+                field: 'imagem_fundo3',
+                url: result?.imagem_fundo3 || null,
+                attribution: result?.unsplash_attributions?.imagem_fundo3 || null,
+            },
+        ].filter((candidate) => Boolean(candidate.url));
+    }
+
+    _promotePrimaryImage(result, candidate, searchKeyword) {
+        const normalizedSearchKeyword = this._normalizeKeyword(searchKeyword);
+        if (!candidate?.url) {
+            return {
+                ...result,
+                searchKeyword: normalizedSearchKeyword,
+            };
+        }
+
+        const nextAttributions = result?.unsplash_attributions
+            ? {
+                ...result.unsplash_attributions,
+                imagem_fundo: candidate.attribution || result.unsplash_attributions.imagem_fundo || null,
+            }
+            : result?.unsplash_attributions || null;
+
+        return {
+            ...result,
+            imagem_fundo: candidate.url,
+            unsplash_attributions: nextAttributions,
+            searchKeyword: normalizedSearchKeyword,
+        };
+    }
+
+    async searchImagesWithRelatedFallback(keyword, usedUrls = new Set()) {
+        const variants = this._buildRelatedKeywordCandidates(keyword);
+        let firstNonEmptyResult = null;
+
+        for (const variant of variants) {
+            const result = await this.searchImages(variant);
+            const uniqueCandidate = this._collectImageCandidates(result).find((candidate) => !usedUrls.has(candidate.url));
+
+            if (!firstNonEmptyResult && result?.imagem_fundo) {
+                firstNonEmptyResult = result;
+            }
+
+            if (uniqueCandidate) {
+                return this._promotePrimaryImage(result, uniqueCandidate, variant);
+            }
+        }
+
+        if (firstNonEmptyResult?.imagem_fundo) {
+            return {
+                ...firstNonEmptyResult,
+                imagem_fundo: null,
+                searchKeyword: variants[0] || this._normalizeKeyword(keyword),
+            };
+        }
+
+        return {
+            imagem_fundo: null,
+            imagem_fundo2: null,
+            imagem_fundo3: null,
+            unsplash_attributions: null,
+            searchKeyword: variants[0] || this._normalizeKeyword(keyword),
+        };
     }
 
     /**
@@ -324,9 +494,9 @@ export class UnsplashService {
                 // Se API falhou (ambos null), busca imagem no Unsplash como fallback
                 if (!videoUrl && !thumbnailUrl) {
                     logger.warn(`[unsplash] Slide ${i + 1} video extraction failed - falling back to Unsplash`);
-                    const images = await this.searchImages(slide.keyword);
-                    const candidates = [images.imagem_fundo, images.imagem_fundo2, images.imagem_fundo3].filter(Boolean);
-                    const mainImage = candidates.find(url => !usedMainImages.has(url)) ?? images.imagem_fundo;
+                    const images = await this.searchImagesWithRelatedFallback(slide.keyword, usedMainImages);
+                    const candidates = this._collectImageCandidates(images);
+                    const mainImage = candidates.find(candidate => !usedMainImages.has(candidate.url))?.url || null;
                     if (mainImage) usedMainImages.add(mainImage);
                     slidesWithImages.push({ ...slide, ...images, imagem_fundo: mainImage });
                 } else {
@@ -361,9 +531,9 @@ export class UnsplashService {
                         logger.warn(`[unsplash] Slide ${i + 1} had entity "${slide.entity_name || slide.google_keyword}" but Tavily/Google found no image — falling back to Unsplash keyword "${slide.keyword}"`);
                     }
                     // Busca no Unsplash e seleciona a primeira imagem principal ainda não usada
-                    const images = await this.searchImages(slide.keyword);
-                    const candidates = [images.imagem_fundo, images.imagem_fundo2, images.imagem_fundo3].filter(Boolean);
-                    const mainImage = candidates.find(url => !usedMainImages.has(url)) ?? images.imagem_fundo;
+                    const images = await this.searchImagesWithRelatedFallback(slide.keyword, usedMainImages);
+                    const candidates = this._collectImageCandidates(images);
+                    const mainImage = candidates.find(candidate => !usedMainImages.has(candidate.url))?.url || null;
                     if (mainImage) usedMainImages.add(mainImage);
                     slidesWithImages.push({ ...slide, ...images, imagem_fundo: mainImage });
                 }
