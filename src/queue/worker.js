@@ -158,9 +158,10 @@ logger.info(`   Queue: ${config.queue.name}`);
 logger.info(`   Concurrency: ${config.queue.concurrency}`);
 logger.info(`   Attempts: ${config.queue.attempts}`);
 logger.info(`   Build: ${BUILD_VERSION} (${BUILD_COMMIT})`);
-logger.info(`   Image pipeline: v3 (article+tavily+unsplash)`);
+logger.info(`   Image pipeline: v4 (article+tavily+unsplash+pexels)`);
 logger.info(`   TAVILY_API_KEY present: ${!!process.env.TAVILY_API_KEY}`);
 logger.info(`   UNSPLASH_ACCESS_KEY present: ${!!process.env.UNSPLASH_ACCESS_KEY}`);
+logger.info(`   PEXELS_API_KEY present: ${!!process.env.PEXELS_API_KEY}`);
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {

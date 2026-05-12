@@ -51,6 +51,8 @@ export class UnsplashService {
         this.accessKey = config.unsplash.accessKey;
         this.appName = config.unsplash.appName;
         this.baseUrl = 'https://api.unsplash.com';
+        this.pexelsApiKey = config.pexels.apiKey;
+        this.pexelsBaseUrl = 'https://api.pexels.com/v1';
     }
 
     /**
@@ -140,6 +142,55 @@ export class UnsplashService {
             .trim();
     }
 
+    _normalizeImageUrl(url) {
+        if (!url || typeof url !== 'string') return null;
+
+        const trimmedUrl = url.trim();
+        if (!trimmedUrl) return null;
+
+        try {
+            const parsedUrl = new URL(trimmedUrl);
+            return `${parsedUrl.origin}${parsedUrl.pathname}`;
+        } catch {
+            return trimmedUrl.split(/[?#]/, 1)[0] || null;
+        }
+    }
+
+    _isImageUrlUsed(usedUrls = new Set(), url) {
+        const normalizedUrl = this._normalizeImageUrl(url);
+        if (!normalizedUrl) return false;
+
+        if (usedUrls.has(normalizedUrl)) {
+            return true;
+        }
+
+        for (const usedUrl of usedUrls) {
+            if (this._normalizeImageUrl(usedUrl) === normalizedUrl) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    _markImageUrlAsUsed(usedUrls, url) {
+        const normalizedUrl = this._normalizeImageUrl(url);
+        if (!normalizedUrl) return false;
+
+        usedUrls.add(normalizedUrl);
+        return true;
+    }
+
+    _emptyImageResult() {
+        return {
+            imagem_fundo: null,
+            imagem_fundo2: null,
+            imagem_fundo3: null,
+            unsplash_attributions: null,
+            image_source: null,
+        };
+    }
+
     _buildRelatedKeywordCandidates(keyword) {
         const normalized = this._normalizeKeyword(keyword);
         if (!normalized) return [];
@@ -209,6 +260,10 @@ export class UnsplashService {
         ].filter((candidate) => Boolean(candidate.url));
     }
 
+    _findFirstUniqueCandidate(result, usedUrls = new Set()) {
+        return this._collectImageCandidates(result).find((candidate) => !this._isImageUrlUsed(usedUrls, candidate.url)) || null;
+    }
+
     _promotePrimaryImage(result, candidate, searchKeyword) {
         const normalizedSearchKeyword = this._normalizeKeyword(searchKeyword);
         if (!candidate?.url) {
@@ -239,7 +294,7 @@ export class UnsplashService {
 
         for (const variant of variants) {
             const result = await this.searchImages(variant);
-            const uniqueCandidate = this._collectImageCandidates(result).find((candidate) => !usedUrls.has(candidate.url));
+            const uniqueCandidate = this._findFirstUniqueCandidate(result, usedUrls);
 
             if (!firstNonEmptyResult && result?.imagem_fundo) {
                 firstNonEmptyResult = result;
@@ -263,6 +318,7 @@ export class UnsplashService {
             imagem_fundo2: null,
             imagem_fundo3: null,
             unsplash_attributions: null,
+            image_source: null,
             searchKeyword: variants[0] || this._normalizeKeyword(keyword),
         };
     }
@@ -316,12 +372,7 @@ export class UnsplashService {
     async searchImages(keyword) {
         try {
             if (!keyword) {
-                return { 
-                    imagem_fundo: null, 
-                    imagem_fundo2: null, 
-                    imagem_fundo3: null,
-                    unsplash_attributions: null
-                };
+                return this._emptyImageResult();
             }
 
             // Tenta buscar com keyword completa primeiro
@@ -362,15 +413,58 @@ export class UnsplashService {
                 }
             }
 
+            if (!result.imagem_fundo) {
+                logger.debug(`[unsplash] No usable Unsplash results for "${keyword}", trying Pexels fallback`);
+                result = await this._searchImagesWithPexels(keyword);
+            }
+
             return result;
         } catch (error) {
             logger.error(`[unsplash] Failed to search images for "${keyword}":`, error.message);
-            return { 
-                imagem_fundo: null, 
-                imagem_fundo2: null, 
-                imagem_fundo3: null,
-                unsplash_attributions: null
+            return this._searchImagesWithPexels(keyword);
+        }
+    }
+
+    async _searchImagesWithPexels(keyword) {
+        if (!this.pexelsApiKey) {
+            logger.warn('[pexels] PEXELS_API_KEY not configured - skipping fallback search');
+            return this._emptyImageResult();
+        }
+
+        try {
+            logger.debug(`[pexels] Searching images for keyword: ${keyword}`);
+
+            const params = new URLSearchParams({
+                query: keyword,
+                per_page: '15',
+                orientation: 'landscape',
+            });
+
+            const response = await fetch(`${this.pexelsBaseUrl}/search?${params}`, {
+                headers: {
+                    Authorization: this.pexelsApiKey,
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Pexels API returned ${response.status}`);
+            }
+
+            const data = await response.json();
+            const validPhotos = (data?.photos || [])
+                .filter((photo) => photo?.src?.large2x || photo?.src?.large || photo?.src?.original)
+                .slice(0, 3);
+
+            return {
+                imagem_fundo: validPhotos[0]?.src?.large2x || validPhotos[0]?.src?.large || validPhotos[0]?.src?.original || null,
+                imagem_fundo2: validPhotos[1]?.src?.large2x || validPhotos[1]?.src?.large || validPhotos[1]?.src?.original || null,
+                imagem_fundo3: validPhotos[2]?.src?.large2x || validPhotos[2]?.src?.large || validPhotos[2]?.src?.original || null,
+                unsplash_attributions: null,
+                image_source: 'pexels',
             };
+        } catch (error) {
+            logger.error(`[pexels] Failed to search images for "${keyword}": ${error.message || error}`);
+            return this._emptyImageResult();
         }
     }
 
@@ -428,20 +522,74 @@ export class UnsplashService {
                     imagem_fundo: photosData[0]?.attribution ?? null,
                     imagem_fundo2: photosData[1]?.attribution ?? null,
                     imagem_fundo3: photosData[2]?.attribution ?? null
-                }
+                },
+                image_source: 'unsplash',
             };
 
             return result;
         } catch (error) {
             logger.error(`[unsplash] Failed to search images for "${keyword}": ${error.message || error}`);
             // Retorna null em caso de erro (não quebra o pipeline)
-            return { 
-                imagem_fundo: null, 
-                imagem_fundo2: null, 
-                imagem_fundo3: null,
-                unsplash_attributions: null
-            };
+            return this._emptyImageResult();
         }
+    }
+
+    async _ensureUniquePrimaryImages(slides) {
+        const usedPrimaryUrls = new Set();
+        const deduplicatedSlides = [];
+
+        for (const slide of slides) {
+            if (!slide?.imagem_fundo) {
+                deduplicatedSlides.push(slide);
+                continue;
+            }
+
+            if (!this._isImageUrlUsed(usedPrimaryUrls, slide.imagem_fundo)) {
+                this._markImageUrlAsUsed(usedPrimaryUrls, slide.imagem_fundo);
+                deduplicatedSlides.push(slide);
+                continue;
+            }
+
+            const keyword = String(slide?.keyword || slide?.title || '').trim();
+            if (!keyword) {
+                deduplicatedSlides.push({
+                    ...slide,
+                    imagem_fundo: null,
+                    imagem_fundo2: null,
+                    imagem_fundo3: null,
+                    unsplash_attributions: null,
+                });
+                continue;
+            }
+
+            const resolvedImages = await this.searchImagesWithRelatedFallback(keyword, usedPrimaryUrls);
+            const uniqueCandidate = this._findFirstUniqueCandidate(resolvedImages, usedPrimaryUrls);
+
+            if (!uniqueCandidate?.url) {
+                logger.warn(`[unsplash] Duplicate image for keyword "${keyword}" had no unique replacement`);
+                deduplicatedSlides.push({
+                    ...slide,
+                    imagem_fundo: null,
+                    imagem_fundo2: null,
+                    imagem_fundo3: null,
+                    unsplash_attributions: null,
+                });
+                continue;
+            }
+
+            this._markImageUrlAsUsed(usedPrimaryUrls, uniqueCandidate.url);
+            deduplicatedSlides.push({
+                ...slide,
+                ...resolvedImages,
+                imagem_fundo: uniqueCandidate.url,
+                image_source: resolvedImages.image_source || slide.image_source || null,
+                _googleImageUsed: false,
+                _tavilyImageUsed: false,
+                _articleImageUsed: false,
+            });
+        }
+
+        return deduplicatedSlides;
     }
 
     /**
@@ -479,7 +627,7 @@ export class UnsplashService {
         const usedMainImages = new Set(
             slides
                 .filter(s => s._googleImageUsed || s._tavilyImageUsed || s._articleImageUsed)
-                .map(s => s.imagem_fundo)
+                .map(s => this._normalizeImageUrl(s.imagem_fundo))
                 .filter(Boolean)
         );
 
@@ -495,13 +643,12 @@ export class UnsplashService {
                 if (!videoUrl && !thumbnailUrl) {
                     logger.warn(`[unsplash] Slide ${i + 1} video extraction failed - falling back to Unsplash`);
                     const images = await this.searchImagesWithRelatedFallback(slide.keyword, usedMainImages);
-                    const candidates = this._collectImageCandidates(images);
-                    const mainImage = candidates.find(candidate => !usedMainImages.has(candidate.url))?.url || null;
-                    if (mainImage) usedMainImages.add(mainImage);
+                    const mainImage = this._findFirstUniqueCandidate(images, usedMainImages)?.url || null;
+                    if (mainImage) this._markImageUrlAsUsed(usedMainImages, mainImage);
                     slidesWithImages.push({ ...slide, ...images, imagem_fundo: mainImage });
                 } else {
                     logger.debug(`[unsplash] Slide ${i + 1} is video - using extracted video`);
-                    if (thumbnailUrl) usedMainImages.add(thumbnailUrl);
+                    if (thumbnailUrl) this._markImageUrlAsUsed(usedMainImages, thumbnailUrl);
                     slidesWithImages.push({
                         ...slide,
                         video_url: videoUrl,
@@ -532,9 +679,8 @@ export class UnsplashService {
                     }
                     // Busca no Unsplash e seleciona a primeira imagem principal ainda não usada
                     const images = await this.searchImagesWithRelatedFallback(slide.keyword, usedMainImages);
-                    const candidates = this._collectImageCandidates(images);
-                    const mainImage = candidates.find(candidate => !usedMainImages.has(candidate.url))?.url || null;
-                    if (mainImage) usedMainImages.add(mainImage);
+                    const mainImage = this._findFirstUniqueCandidate(images, usedMainImages)?.url || null;
+                    if (mainImage) this._markImageUrlAsUsed(usedMainImages, mainImage);
                     slidesWithImages.push({ ...slide, ...images, imagem_fundo: mainImage });
                 }
             }
@@ -546,7 +692,7 @@ export class UnsplashService {
         }
 
         logger.info(`[unsplash] Background images added successfully`);
-        return slidesWithImages;
+        return this._ensureUniquePrimaryImages(slidesWithImages);
     }
 
     /**

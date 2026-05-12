@@ -44,6 +44,11 @@ export const config = {
         appName: process.env.UNSPLASH_APP_NAME || 'carousel_worker',
     },
 
+    // Pexels fallback
+    pexels: {
+        apiKey: process.env.PEXELS_API_KEY || '',
+    },
+
     // Google Custom Search (Images)
     googleImages: {
         apiKey: process.env.GOOGLE_IMAGES_API_KEY,
