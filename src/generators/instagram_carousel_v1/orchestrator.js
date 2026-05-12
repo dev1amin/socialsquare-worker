@@ -18,6 +18,10 @@ import { CTAValidatorAgent } from './agents/ctaValidator.agent.js';
 import { DescriptionAgent } from './agents/description.agent.js';
 import { ResearchAgent } from './agents/research.agent.js';
 import { trackUsage } from '../../services/pricingTracker.service.js';
+import {
+    analyzeCarouselQuality,
+    buildEvidencePack,
+} from '../shared/utils/evidencePack.js';
 
 /**
  * Orchestrator para geração de carrossel Instagram
@@ -154,6 +158,59 @@ export class InstagramCarouselOrchestrator {
         }
         
         return parts.join('\n\n---\n\n');
+    }
+
+    buildEvidenceSources(allRocketData, additionalTexts, postText, articleText, researchResult) {
+        const evidenceSources = [];
+
+        if (Array.isArray(allRocketData) && allRocketData.length > 0) {
+            allRocketData.forEach((item, index) => {
+                evidenceSources.push({
+                    id: `instagram-${item.code || index + 1}`,
+                    type: 'instagram',
+                    label: `Instagram ${item.code || index + 1}`,
+                    content: this.buildCombinedText([item], [], []),
+                });
+            });
+        }
+
+        if (postText) {
+            evidenceSources.push({
+                id: 'post-text',
+                type: 'post_text',
+                label: 'Texto principal enviado',
+                content: postText,
+            });
+        }
+
+        if (articleText) {
+            evidenceSources.push({
+                id: 'article-text',
+                type: 'article',
+                label: 'Artigo complementar enviado',
+                content: articleText,
+            });
+        }
+
+        additionalTexts.forEach((text, index) => {
+            evidenceSources.push({
+                id: `additional-text-${index + 1}`,
+                type: 'additional_url',
+                label: `Fonte adicional ${index + 1}`,
+                content: text,
+            });
+        });
+
+        (researchResult?.sources || []).forEach((source, index) => {
+            evidenceSources.push({
+                id: `research-${index + 1}`,
+                type: 'research',
+                label: source.title || source.url || `Pesquisa ${index + 1}`,
+                content: `${source.title || 'Fonte'}\n${source.content || ''}`,
+            });
+        });
+
+        return evidenceSources;
     }
 
     /**
@@ -477,6 +534,23 @@ export class InstagramCarouselOrchestrator {
             logger.info(`[${this.traceId}] Validating blueprint...`);
             const validatedBlueprint = await this.blueprintValidator.validate(blueprint);
 
+            const evidencePack = buildEvidencePack({
+                sources: this.buildEvidenceSources(allRocketData, additionalTexts, postText, articleText, researchResult),
+                imageAnalysis,
+                context: userContext,
+                blueprint: validatedBlueprint,
+                contentType: input.content_type,
+                screenCount: input.screen_count || templateData.slides.length,
+                templateSlides: templateData.slides,
+                hasCta: input.has_cta,
+            });
+
+            logger.info(`[${this.traceId}] Evidence pack ready`, {
+                sourceCount: evidencePack.sourceCount,
+                claimCount: evidencePack.claimCount,
+                mustUseClaims: evidencePack.mustUseClaims.length,
+            });
+
             // ETAPA 10: Content Type Router - seleciona e executa gerador apropriado
             logger.info(`[${this.traceId}] Generating slides (content_type: ${input.content_type})...`);
             
@@ -509,21 +583,55 @@ export class InstagramCarouselOrchestrator {
             // Log para debug
             logger.info(`[${this.traceId}] Content for generator: ${allCaptions.length} Instagram captions, ${additionalTexts.length} additional texts, text length: ${contentForGenerator.text?.length || 0}`);
             
-            const slides = await this.router.generate(
+            const generationInput = {
+                ...input,
+                multifont,
+                context: userContext,
+                additionalTexts,
+                additional_texts: additionalTexts,
+                combinedSources,
+                allCaptions,
+                evidencePack,
+                qualityRepairBrief: '',
+            };
+
+            let slides = await this.router.generate(
                 input.content_type,
                 validatedBlueprint,
                 contentForGenerator,
                 templateData,
-                { 
-                    ...input, 
-                    multifont, 
-                    context: userContext, 
-                    additionalTexts,  // camelCase
-                    additional_texts: additionalTexts,  // snake_case (para compatibilidade)
-                    combinedSources,
-                    allCaptions  // NOVO: passar todas as captions
-                }
+                generationInput
             );
+
+            let generationQuality = analyzeCarouselQuality(slides, evidencePack);
+            logger.info(`[${this.traceId}] Initial copy quality ${generationQuality.score}/100`, {
+                passed: generationQuality.passed,
+                issues: generationQuality.issues.length,
+            });
+
+            if (!generationQuality.passed && generationQuality.repairBrief) {
+                logger.warn(`[${this.traceId}] Copy quality below threshold, retrying generation with repair brief`);
+                const retriedSlides = await this.router.generate(
+                    input.content_type,
+                    validatedBlueprint,
+                    contentForGenerator,
+                    templateData,
+                    {
+                        ...generationInput,
+                        qualityRepairBrief: generationQuality.repairBrief,
+                    }
+                );
+                const retriedQuality = analyzeCarouselQuality(retriedSlides, evidencePack);
+                logger.info(`[${this.traceId}] Retry copy quality ${retriedQuality.score}/100`, {
+                    passed: retriedQuality.passed,
+                    issues: retriedQuality.issues.length,
+                });
+
+                if (retriedQuality.score >= generationQuality.score) {
+                    slides = retriedSlides;
+                    generationQuality = retriedQuality;
+                }
+            }
 
             // ETAPA 10.5: TitleSquash — re-gera titles dos slides sem subtitle no template
             // GPT gerou title+subtitle para todos; aqui reduzimos os slots title-only
@@ -741,6 +849,12 @@ export class InstagramCarouselOrchestrator {
                 logger.info(`[${this.traceId}] Skipping CTA validation (has_cta=false)`);
             }
 
+            const finalQuality = analyzeCarouselQuality(adaptedSlides, evidencePack);
+            logger.info(`[${this.traceId}] Final copy quality ${finalQuality.score}/100`, {
+                passed: finalQuality.passed,
+                issues: finalQuality.issues.length,
+            });
+
             // ETAPA 15: Description Agent - gera descrição final do carrossel
             logger.info(`[${this.traceId}] Generating carousel description...`);
             const description = await this.descriptionAgent.generate({
@@ -765,7 +879,12 @@ export class InstagramCarouselOrchestrator {
                 userId,
                 businessId,
                 instagramCodes,
-                researchResult
+                researchResult,
+                evidencePack,
+                {
+                    generation: generationQuality,
+                    final: finalQuality,
+                }
             );
 
             logger.info(`[${this.traceId}] Generation completed successfully (${adaptedSlides.length} slides, ${instagramCodes.length} source(s))`);
@@ -786,7 +905,7 @@ export class InstagramCarouselOrchestrator {
      * ⚠️ UNSPLASH COMPLIANCE: Inclui atribuições completas para cada imagem
      * ⚠️ MÚLTIPLAS FONTES: Inclui informação de todas as fontes no metadata
      */
-    buildFinalResult(slides, description, blueprint, allRocketData, brandData, input, userId, businessId, allCodes, researchResult) {
+    buildFinalResult(slides, description, blueprint, allRocketData, brandData, input, userId, businessId, allCodes, researchResult, evidencePack, qualityReport) {
         // Normalizar allRocketData para trabalhar tanto com array quanto com objeto único
         const rocketDataArray = Array.isArray(allRocketData) ? 
             allRocketData.map(item => item?.data || item) : 
@@ -858,6 +977,20 @@ export class InstagramCarouselOrchestrator {
                             video_count: data?.metadata?.video_count || 0
                         };
                     })
+                },
+                evidence: {
+                    source_count: evidencePack?.sourceCount || 0,
+                    claim_count: evidencePack?.claimCount || 0,
+                    must_use_claims: evidencePack?.mustUseClaims?.length || 0,
+                    source_labels: evidencePack?.metadata?.sourceLabels || [],
+                },
+                quality: {
+                    generation_score: qualityReport?.generation?.score ?? null,
+                    generation_passed: qualityReport?.generation?.passed ?? null,
+                    generation_issues: qualityReport?.generation?.issues || [],
+                    final_score: qualityReport?.final?.score ?? null,
+                    final_passed: qualityReport?.final?.passed ?? null,
+                    final_issues: qualityReport?.final?.issues || [],
                 }
             }
         };

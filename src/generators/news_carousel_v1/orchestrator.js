@@ -16,6 +16,10 @@ import { BrandAdapterAgent } from './agents/brandAdapter.agent.js';
 import { CTAValidatorAgent } from './agents/ctaValidator.agent.js';
 import { DescriptionAgent } from './agents/description.agent.js';
 import { trackUsage } from '../../services/pricingTracker.service.js';
+import {
+    analyzeCarouselQuality,
+    buildEvidencePack,
+} from '../shared/utils/evidencePack.js';
 
 /**
  * Orchestrator para geração de carrossel News
@@ -55,17 +59,91 @@ export class NewsCarouselOrchestrator {
         this.descriptionAgent = new DescriptionAgent(tokenTracker);
     }
 
+    buildEvidenceSources(allNewsData = []) {
+        return allNewsData.map((item, index) => ({
+            id: `news-${index + 1}`,
+            type: 'news',
+            label: item.url || `Noticia ${index + 1}`,
+            content: item.htmlText || '',
+        }));
+    }
+
+    getAdditionalUrls(input = {}) {
+        if (Array.isArray(input.multiple_links) && input.multiple_links.length > 0) {
+            return input.multiple_links;
+        }
+
+        if (Array.isArray(input.additional_urls) && input.additional_urls.length > 0) {
+            return input.additional_urls;
+        }
+
+        return [];
+    }
+
+    buildPreloadedTextMap(input = {}) {
+        const urls = this.getAdditionalUrls(input);
+        const texts = Array.isArray(input.additional_texts) ? input.additional_texts : [];
+        const textMap = new Map();
+
+        urls.forEach((url, index) => {
+            const text = typeof texts[index] === 'string' ? texts[index].trim() : '';
+            if (url && text) {
+                textMap.set(url, text);
+            }
+        });
+
+        return textMap;
+    }
+
+    sanitizeNewsText(text) {
+        let cleaned = String(text || '');
+        const cutPatterns = [
+            /Help me find iOS and android adoption rates/i,
+            /Compiling comprehensive data on iOS and Android adoption rates/i,
+            /Top 10 Developed Economies/i,
+            /What['’]s next/i,
+            /Livestream replay/i,
+            /Appendix/i,
+        ];
+
+        for (const pattern of cutPatterns) {
+            const match = cleaned.match(pattern);
+            if (match && typeof match.index === 'number' && match.index > 1200) {
+                cleaned = cleaned.slice(0, match.index);
+                break;
+            }
+        }
+
+        return cleaned
+            .replace(/opens? in a new window/gi, ' ')
+            .replace(/Loading…?/gi, ' ')
+            .replace(/\bShare\b/gi, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 12000);
+    }
+
     /**
      * Busca dados de múltiplas notícias
      * Continua processando mesmo se alguma falhar
      */
-    async fetchMultipleNewsData(urls) {
+    async fetchMultipleNewsData(urls, preloadedTextMap = new Map()) {
         const allData = [];
 
         for (const url of urls) {
             try {
+                const preloadedText = preloadedTextMap.get(url);
+                if (preloadedText) {
+                    logger.info(`[${this.traceId}] Using preloaded extracted text for ${url}...`);
+                    allData.push({
+                        url,
+                        htmlText: this.sanitizeNewsText(preloadedText),
+                    });
+                    continue;
+                }
+
                 logger.info(`[${this.traceId}] Scraping news HTML from ${url}...`);
-                const htmlText = await htmlScraperService.scrape(url);
+                const htmlText = this.sanitizeNewsText(await htmlScraperService.scrape(url));
                 allData.push({
                     url,
                     htmlText
@@ -129,9 +207,11 @@ export class NewsCarouselOrchestrator {
             }
 
             // Se houver múltiplas fontes, adiciona as outras
-            if (multifont && input.multiple_links && Array.isArray(input.multiple_links)) {
-                newsUrls.push(...input.multiple_links);
-                logger.info(`[${this.traceId}] Multiple news detected. Total URLs: ${newsUrls.length} (primary: ${newsUrl}, additional: ${input.multiple_links.join(', ')})`);
+            const additionalUrls = this.getAdditionalUrls(input);
+            const preloadedTextMap = this.buildPreloadedTextMap(input);
+            if (multifont && additionalUrls.length > 0) {
+                newsUrls.push(...additionalUrls);
+                logger.info(`[${this.traceId}] Multiple news detected. Total URLs: ${newsUrls.length} (primary: ${newsUrl}, additional: ${additionalUrls.join(', ')})`);
             }
 
             // ETAPA 3: Buscar template do banco
@@ -184,11 +264,11 @@ export class NewsCarouselOrchestrator {
                 if (multifont && newsUrls.length > 1) {
                     // NOVO: Buscar múltiplas notícias
                     logger.info(`[${this.traceId}] Fetching data from ${newsUrls.length} news URLs...`);
-                    allNewsData = await this.fetchMultipleNewsData(newsUrls);
+                    allNewsData = await this.fetchMultipleNewsData(newsUrls, preloadedTextMap);
                 } else {
                     // Fluxo existente: 1 notícia
                     logger.info(`[${this.traceId}] Scraping news HTML from ${newsUrls[0]}...`);
-                    const htmlText = await htmlScraperService.scrape(newsUrls[0]);
+                    const htmlText = this.sanitizeNewsText(await htmlScraperService.scrape(newsUrls[0]));
                     allNewsData = [{ url: newsUrls[0], htmlText }];
                 }
             } else {
@@ -226,18 +306,65 @@ export class NewsCarouselOrchestrator {
             logger.info(`[${this.traceId}] Validating blueprint...`);
             const validatedBlueprint = await this.blueprintValidator.validate(blueprint);
 
+            const evidencePack = buildEvidencePack({
+                sources: this.buildEvidenceSources(allNewsData),
+                context: input.context,
+                blueprint: validatedBlueprint,
+                contentType: input.content_type,
+                screenCount: input.screen_count || templateData.slides.length,
+                templateSlides: templateData.slides,
+                hasCta: input.has_cta,
+            });
+
+            logger.info(`[${this.traceId}] Evidence pack ready`, {
+                sourceCount: evidencePack.sourceCount,
+                claimCount: evidencePack.claimCount,
+                mustUseClaims: evidencePack.mustUseClaims.length,
+            });
+
             // ETAPA 8: Content Type Router - seleciona e executa gerador apropriado
             logger.info(`[${this.traceId}] Generating slides (content_type: ${input.content_type})...`);
             const htmlContent = allNewsData.length > 0 ? 
                 allNewsData.map(item => item.htmlText).join('\n---\n') : 
                 null;
-            const slides = await this.router.generate(
+            const generationInput = { ...input, multifont, evidencePack, qualityRepairBrief: '' };
+
+            let slides = await this.router.generate(
                 input.content_type,
                 validatedBlueprint,
                 htmlContent,
                 templateData,
-                { ...input, multifont }
+                generationInput
             );
+
+            let generationQuality = analyzeCarouselQuality(slides, evidencePack);
+            logger.info(`[${this.traceId}] Initial copy quality ${generationQuality.score}/100`, {
+                passed: generationQuality.passed,
+                issues: generationQuality.issues.length,
+            });
+
+            if (!generationQuality.passed && generationQuality.repairBrief) {
+                logger.warn(`[${this.traceId}] Copy quality below threshold, retrying generation with repair brief`);
+                const retriedSlides = await this.router.generate(
+                    input.content_type,
+                    validatedBlueprint,
+                    htmlContent,
+                    templateData,
+                    {
+                        ...generationInput,
+                        qualityRepairBrief: generationQuality.repairBrief,
+                    }
+                );
+                const retriedQuality = analyzeCarouselQuality(retriedSlides, evidencePack);
+                logger.info(`[${this.traceId}] Retry copy quality ${retriedQuality.score}/100`, {
+                    passed: retriedQuality.passed,
+                    issues: retriedQuality.issues.length,
+                });
+                if (retriedQuality.score >= generationQuality.score) {
+                    slides = retriedSlides;
+                    generationQuality = retriedQuality;
+                }
+            }
 
             // ETAPA 8.5: TitleSquash — re-gera titles dos slides sem subtitle no template
             // GPT gerou title+subtitle para todos; aqui reduzimos os slots title-only
@@ -442,6 +569,12 @@ export class NewsCarouselOrchestrator {
                 logger.info(`[${this.traceId}] Skipping CTA validation (has_cta=false)`);
             }
 
+            const finalQuality = analyzeCarouselQuality(adaptedSlides, evidencePack);
+            logger.info(`[${this.traceId}] Final copy quality ${finalQuality.score}/100`, {
+                passed: finalQuality.passed,
+                issues: finalQuality.issues.length,
+            });
+
             // ETAPA 13: Description Agent - gera descrição final do carrossel
             logger.info(`[${this.traceId}] Generating carousel description...`);
             const description = await this.descriptionAgent.generate({
@@ -464,7 +597,12 @@ export class NewsCarouselOrchestrator {
                 input,
                 userId,
                 businessId,
-                newsUrls
+                newsUrls,
+                evidencePack,
+                {
+                    generation: generationQuality,
+                    final: finalQuality,
+                }
             );
 
             logger.info(`[${this.traceId}] News generation completed successfully (${adaptedSlides.length} slides, ${newsUrls.length} source(s))`);
@@ -485,8 +623,9 @@ export class NewsCarouselOrchestrator {
      * ⚠️ UNSPLASH COMPLIANCE: Inclui atribuições completas para cada imagem
      * ⚠️ MÚLTIPLAS FONTES: Inclui informação de todas as fontes no metadata
      */
-    buildFinalResult(slides, description, blueprint, allNewsData, brandData, input, userId, businessId, allUrls) {
+    buildFinalResult(slides, description, blueprint, allNewsData, brandData, input, userId, businessId, allUrls, evidencePack, qualityReport) {
         const multifont = input.multifont === true;
+        const additionalUrls = this.getAdditionalUrls(input);
         
         return {
             dados_gerais: {
@@ -524,12 +663,26 @@ export class NewsCarouselOrchestrator {
                 sources: {
                     multifont,
                     primary_url: input.url,
-                    additional_urls: input.multiple_links || [],
+                    additional_urls: additionalUrls,
                     all_urls: allUrls,
                     news_data: allNewsData.map(item => ({
                         url: item.url,
                         content_length: item.htmlText?.length || 0
                     }))
+                },
+                evidence: {
+                    source_count: evidencePack?.sourceCount || 0,
+                    claim_count: evidencePack?.claimCount || 0,
+                    must_use_claims: evidencePack?.mustUseClaims?.length || 0,
+                    source_labels: evidencePack?.metadata?.sourceLabels || [],
+                },
+                quality: {
+                    generation_score: qualityReport?.generation?.score ?? null,
+                    generation_passed: qualityReport?.generation?.passed ?? null,
+                    generation_issues: qualityReport?.generation?.issues || [],
+                    final_score: qualityReport?.final?.score ?? null,
+                    final_passed: qualityReport?.final?.passed ?? null,
+                    final_issues: qualityReport?.final?.issues || [],
                 }
             }
         };

@@ -12,6 +12,12 @@ O carrossel deve:
 TEXTO ORIGINAL (fonte semântica primária — verdade absoluta dos fatos):
 {{original_text}}
 
+PACOTE DE EVIDENCIAS E COBERTURA (OBRIGATORIO):
+{{evidence_pack}}
+
+REPAROS PRIORITARIOS DESTA TENTATIVA (se vazio, ignore):
+{{quality_repair_brief}}
+
 CONTEXTO:
 {{context}}
 

@@ -2,6 +2,7 @@ import { openai } from '../../../config/openai.js';
 import { logger } from '../../../config/logger.js';
 import { PromptLoader } from '../utils/promptLoader.js';
 import { recordTokens } from '../../../shared/tokenUtils.js';
+import { formatEvidencePackForPrompt } from '../../shared/utils/evidencePack.js';
 
 /**
  * Story Generator (News): "era uma vez..."
@@ -14,6 +15,7 @@ export class StoryGenerator {
 
     async generate(blueprint, htmlText, template, input) {
         try {
+            const evidencePackText = formatEvidencePackForPrompt(input.evidencePack);
             const screenCount = input.screen_count || template.slides.length;
             const baseMask = template.slides.map(s => !!s.subtitle);
             const extendedMask = Array.from({ length: screenCount }, (_, i) => baseMask[i % baseMask.length]);
@@ -27,6 +29,8 @@ export class StoryGenerator {
                 slides_mask: JSON.stringify(extendedMask),
                 screen_count: screenCount,
                 news_text: htmlText ? htmlText.substring(0, 3000) : '',
+                evidence_pack: evidencePackText,
+                quality_repair_brief: input.qualityRepairBrief || '',
             });
 
             const completion = await openai.chat.completions.create({
@@ -36,7 +40,7 @@ export class StoryGenerator {
                     { role: 'user', content: user },
                 ],
                 response_format: { type: 'json_object' },
-                temperature: 0.8,
+                temperature: 0.45,
             });
 
             // Registra tokens

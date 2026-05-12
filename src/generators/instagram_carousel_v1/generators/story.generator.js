@@ -4,6 +4,7 @@ import { logger } from '../../../config/logger.js';
 import { PromptLoader } from '../utils/promptLoader.js';
 import { recordTokens } from '../../../shared/tokenUtils.js';
 import { buildOriginalText, buildContextText } from '../utils/contentBuilder.js';
+import { formatEvidencePackForPrompt } from '../../shared/utils/evidencePack.js';
 
 /**
  * Story Generator: carrossÃ©is em formato de histÃ³ria ancorada
@@ -26,6 +27,7 @@ export class StoryGenerator {
             logger.info(`[story] Building carousel with ${input.screen_count} slides`);
             logger.info(`[story] Content sources: text=${!!content.text}(${content.text?.length || 0}), caption=${!!content.caption}(${content.caption?.length || 0}), additionalTexts=${input.additionalTexts?.length || input.additional_texts?.length || 0}`);
             logger.info(`[story] Original text length: ${originalText.length}, context length: ${contextText.length}`);
+            const evidencePackText = formatEvidencePackForPrompt(input.evidencePack);
             
             // Log preview do texto para verificar se as fontes estÃ£o incluÃ­das
             if (originalText.includes('---')) {
@@ -43,6 +45,8 @@ export class StoryGenerator {
                 template_json: JSON.stringify(extendedTemplate),
                 slides_mask: JSON.stringify(extendedMask),
                 screen_count: screenCount,
+                evidence_pack: evidencePackText,
+                quality_repair_brief: input.qualityRepairBrief || '',
             });
 
             const completion = await openai.chat.completions.create({
@@ -52,7 +56,7 @@ export class StoryGenerator {
                     { role: 'user', content: user },
                 ],
                 response_format: { type: 'json_object' },
-                temperature: 0.7,
+                temperature: 0.45,
             });
 
             recordTokens(this.tokenTracker, 'story_generator', completion);

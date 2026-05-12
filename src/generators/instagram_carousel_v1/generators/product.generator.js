@@ -4,6 +4,7 @@ import { logger } from '../../../config/logger.js';
 import { PromptLoader } from '../utils/promptLoader.js';
 import { recordTokens } from '../../../shared/tokenUtils.js';
 import { buildOriginalText, buildContextText } from '../utils/contentBuilder.js';
+import { formatEvidencePackForPrompt } from '../../shared/utils/evidencePack.js';
 
 /**
  * Product Generator: carrossÃ©is focados em produto/sistema
@@ -22,6 +23,7 @@ export class ProductGenerator {
             const contextText = buildContextText(input);
             
             logger.debug(`[product] Original text length: ${originalText.length}, context length: ${contextText.length}`);
+            const evidencePackText = formatEvidencePackForPrompt(input.evidencePack);
             
             const screenCount = input.screen_count || template.slides.length;
             const baseMask = template.slides.map(s => !!s.subtitle);
@@ -34,6 +36,8 @@ export class ProductGenerator {
                 template_json: JSON.stringify(extendedTemplate),
                 slides_mask: JSON.stringify(extendedMask),
                 screen_count: screenCount,
+                evidence_pack: evidencePackText,
+                quality_repair_brief: input.qualityRepairBrief || '',
             });
 
             const completion = await openai.chat.completions.create({
@@ -43,7 +47,7 @@ export class ProductGenerator {
                     { role: 'user', content: user },
                 ],
                 response_format: { type: 'json_object' },
-                temperature: 0.7,
+                temperature: 0.45,
             });
 
             recordTokens(this.tokenTracker, 'product_generator', completion);

@@ -12,6 +12,12 @@ CONTEXTO:
 TEXTO ORIGINAL DA NOTÍCIA (fonte semântica primária — verdade absoluta dos fatos):
 {{news_text}}
 
+PACOTE DE EVIDENCIAS E COBERTURA (OBRIGATORIO):
+{{evidence_pack}}
+
+REPAROS PRIORITARIOS DESTA TENTATIVA (se vazio, ignore):
+{{quality_repair_brief}}
+
 TEMPLATE REAL (estrutura, ritmo e exemplos de conteúdo — referência principal):
 {{template_json}}
 
