@@ -1,0 +1,16 @@
+SLIDE ATUAL:
+{{slide_json}}
+
+TITLE_ONLY:
+{{title_only}}
+
+FATO-CHAVE PLANEJADO PARA O HOOK:
+{{planned_claim}}
+
+ANCORAS OBRIGATORIAS:
+{{required_anchors}}
+
+CONTEXTO FONTE:
+{{source_context}}
+
+Reescreva apenas o hook do slide 1. Retorne apenas JSON.

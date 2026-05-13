@@ -6,6 +6,17 @@ devem ser exibidos SEM subtitle — apenas o title ficará visível.
 Cada slide no JSON possui os campos `long_text` e `dense_title` para definir o modo de reescrita.
 Alguns slides podem vir com `subtitle` vazio. Nesses casos, use o `source_context`
 para completar o que faltar sem inventar fatos não sustentados pela fonte.
+Se `hook_slide: true`, esse title e o slide 1 do carrossel e precisa ser o mais forte da sequencia.
+
+REGRAS EXTRAS PARA `hook_slide: true`
+1. O title precisa parar o scroll com conflito, risco, ruptura, perda, custo ou consequencia concreta.
+2. Evite aberturas burocraticas como "X revela", "estudo mostra", "analise aponta" sem impacto explicito.
+3. Continue factual. O objetivo e intensidade, nao clickbait vazio.
+4. Se houver nome proprio, numero ou fato forte na fonte, use isso logo no comeco do title.
+5. Prefira abrir pelo pior desdobramento da fonte, nao pelo processo que descobriu o problema.
+   BOM: "Produtos devolvidos expoem corrosao critica na fabrica da Ype"
+   RUIM: "Descoberta de corrosao critica na fabrica da Ype durante inspecao"
+   RUIM: "Inspecao na Ype revela desafios serios de corrosao"
 
 ━━━━━━━━━━━━━━━━━━━━━━
 MODO PADRÃO (long_text: false)

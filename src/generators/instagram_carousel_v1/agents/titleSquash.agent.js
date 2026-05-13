@@ -89,7 +89,7 @@ export class TitleSquashAgent {
             .map((s, i) => ({ s, i }))
             .filter(({ s, i }) => {
                 if (baseMask[i % baseMask.length]) return false;
-                return rewriteAllTitleOnly || !!s.subtitle || longTextIndices.has(i) || denseTitleIndices.has(i);
+                return rewriteAllTitleOnly || i === 0 || !!s.subtitle || longTextIndices.has(i) || denseTitleIndices.has(i);
             });
 
         if (titleOnlySlides.length === 0) return slides;
@@ -100,6 +100,7 @@ export class TitleSquashAgent {
             index: i,
             title: s.title || '',
             subtitle: s.subtitle || '',
+            hook_slide: i === 0,
             long_text: longTextIndices.has(i),
             dense_title: denseTitleIndices.has(i),
         }));

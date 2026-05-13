@@ -14,6 +14,7 @@ import { ContentTypeRouter } from './routers/contentType.router.js';
 import { KeywordAgent } from './agents/keyword.agent.js';
 import { TitleSquashAgent } from './agents/titleSquash.agent.js';
 import { BrandAdapterAgent } from './agents/brandAdapter.agent.js';
+import { HookRefinerAgent } from './agents/hookRefiner.agent.js';
 import { CTAValidatorAgent } from './agents/ctaValidator.agent.js';
 import { DescriptionAgent } from './agents/description.agent.js';
 import { ResearchAgent } from './agents/research.agent.js';
@@ -59,6 +60,7 @@ export class InstagramCarouselOrchestrator {
         this.keywordAgent = new KeywordAgent(tokenTracker);
         this.titleSquash = new TitleSquashAgent(tokenTracker);
         this.brandAdapter = new BrandAdapterAgent(tokenTracker);
+        this.hookRefiner = new HookRefinerAgent(tokenTracker);
         this.ctaValidator = new CTAValidatorAgent(tokenTracker);
         this.descriptionAgent = new DescriptionAgent(tokenTracker);
         this.researchAgent = new ResearchAgent(this.traceId);
@@ -847,6 +849,46 @@ export class InstagramCarouselOrchestrator {
                 adaptedSlides = await this.ctaValidator.ensureCTA(adaptedSlides, input, validatedBlueprint);
             } else {
                 logger.info(`[${this.traceId}] Skipping CTA validation (has_cta=false)`);
+            }
+
+            if (adaptedSlides.length > 0) {
+                const baselineQuality = analyzeCarouselQuality(adaptedSlides, evidencePack);
+                const baselineHookIssues = baselineQuality.issues.filter((issue) => ['weak_hook', 'bureaucratic_hook'].includes(issue.type)).length;
+
+                try {
+                    logger.info(`[${this.traceId}] Refining slide 1 hook...`);
+                    const hookSourceContext = [
+                        Array.isArray(combinedSources)
+                            ? combinedSources
+                                .filter((source) => source?.content && source.type !== 'research')
+                                .map((source) => source.content.trim())
+                                .join('\n---\n')
+                            : '',
+                        userContext,
+                    ].filter(Boolean).join('\n\n').substring(0, 5000);
+                    const refinedHookSlides = await this.hookRefiner.refine(adaptedSlides, evidencePack, hookSourceContext);
+                    const refinedHookQuality = analyzeCarouselQuality(refinedHookSlides, evidencePack);
+                    const refinedHookIssues = refinedHookQuality.issues.filter((issue) => ['weak_hook', 'bureaucratic_hook'].includes(issue.type)).length;
+
+                    if (refinedHookIssues < baselineHookIssues || refinedHookQuality.score > baselineQuality.score) {
+                        adaptedSlides = refinedHookSlides;
+                        logger.info(`[${this.traceId}] HookRefiner improved slide 1`, {
+                            score_before: baselineQuality.score,
+                            score_after: refinedHookQuality.score,
+                            hook_issues_before: baselineHookIssues,
+                            hook_issues_after: refinedHookIssues,
+                        });
+                    } else {
+                        logger.info(`[${this.traceId}] HookRefiner kept original slide 1`, {
+                            score_before: baselineQuality.score,
+                            score_after: refinedHookQuality.score,
+                            hook_issues_before: baselineHookIssues,
+                            hook_issues_after: refinedHookIssues,
+                        });
+                    }
+                } catch (err) {
+                    logger.warn(`[${this.traceId}] HookRefiner failed, keeping original slide 1: ${err.message}`);
+                }
             }
 
             const finalQuality = analyzeCarouselQuality(adaptedSlides, evidencePack);

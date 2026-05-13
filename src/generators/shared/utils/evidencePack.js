@@ -7,6 +7,14 @@ const GENERIC_PATTERNS = [
     /\b(?:todo mundo|ninguem te conta|voce precisa)\b/i,
 ];
 
+const HOOK_IMPACT_PATTERNS = [
+    /\b(?:rombo|crise|falha|colapso|risco|ameaca|devolv|interdit|multa|bloqueio|queda|prejuizo|urgencia|grave|critica|paralis|trav|contamin|demiss|acus|process|vaz|acidente)\b/i,
+];
+
+const BUREAUCRATIC_HOOK_PATTERNS = [
+    /^(?:inspecao|estudo|pesquisa|relatorio|analise|levantamento|auditoria|empresa|marca|caso)\b.*\b(?:revela|mostra|aponta|indica|apresenta|detalha|explica|traz)\b/i,
+];
+
 const NOISE_PATTERNS = [
     /\bloading\b/i,
     /\bopens? in a new window\b/i,
@@ -138,6 +146,24 @@ function buildSignalTags(text) {
         .map(([tag]) => tag);
 }
 
+function hasHookImpact(text) {
+    const normalized = normalizeKey(text);
+    return HOOK_IMPACT_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function looksLikeBureaucraticHook(text) {
+    const normalized = normalizeKey(text);
+    return BUREAUCRATIC_HOOK_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function hookHasScrollStoppingSignal(slideAnchor) {
+    return slideAnchor.numeric.length > 0
+        || slideAnchor.proper.length >= 2
+        || slideAnchor.signalTags.includes('contrast')
+        || /[!?]/.test(slideAnchor.text)
+        || hasHookImpact(slideAnchor.text);
+}
+
 function scoreClaim(text, source, positionIndex, totalClaims) {
     const signalTags = buildSignalTags(text);
     const numericAnchors = extractNumericAnchors(text);
@@ -238,6 +264,7 @@ function buildClaimsFromSources(sources) {
 
 function allocateRoles(screenCount, hasCta) {
     const baseRoles = ['hook', 'tension', 'diagnosis', 'proof', 'mechanism', 'implication', 'example', 'contrast', 'takeaway'];
+    const followupRoles = baseRoles.slice(1);
     const roles = [];
 
     for (let index = 0; index < screenCount; index += 1) {
@@ -251,7 +278,7 @@ function allocateRoles(screenCount, hasCta) {
             continue;
         }
 
-        roles.push(baseRoles[(index - 1) % (baseRoles.length - 1)] || 'support');
+        roles.push(followupRoles[(index - 1) % followupRoles.length] || 'support');
     }
 
     return roles;
@@ -384,8 +411,12 @@ function buildSlidePlan(claims, sources, { screenCount, hasCta = false, template
                 ? [...selectedClaim.numericAnchors, ...selectedClaim.properNouns, ...selectedClaim.keywordAnchors].slice(0, 6)
                 : [],
             noveltyGuard: selectedClaim
-                ? `Nao repetir o mesmo enquadramento de ${selectedClaim.sourceLabel}; avance a narrativa com novo detalhe ou nova consequencia e cite pelo menos uma ancora concreta do plano.`
-                : 'Introduzir um novo angulo e evitar reformular o slide anterior.',
+                ? role === 'hook'
+                    ? `Abrir com tensao imediata, risco, ruptura, custo ou consequencia concreta de ${selectedClaim.sourceLabel}; evitar abertura burocratica do tipo "X revela" sem impacto claro e citar pelo menos uma ancora concreta do plano.`
+                    : `Nao repetir o mesmo enquadramento de ${selectedClaim.sourceLabel}; avance a narrativa com novo detalhe ou nova consequencia e cite pelo menos uma ancora concreta do plano.`
+                : role === 'hook'
+                    ? 'Abrir com tensao, contraste ou consequencia concreta; evitar hook burocratico e generico.'
+                    : 'Introduzir um novo angulo e evitar reformular o slide anterior.',
         });
     }
 
@@ -424,15 +455,17 @@ export function buildEvidencePack({
         }, normalizedSources.length));
     }
 
-    const claims = buildClaimsFromSources(normalizedSources);
+    const evidenceSources = normalizedSources.filter((source) => source.type !== 'context');
+    const claimSources = evidenceSources.length > 0 ? evidenceSources : normalizedSources;
+    const claims = buildClaimsFromSources(claimSources);
     const mustUseClaims = claims.slice(0, Math.min(Math.max(screenCount + 2, 6), 14));
-    const slidePlan = buildSlidePlan(mustUseClaims, normalizedSources, {
+    const slidePlan = buildSlidePlan(mustUseClaims, claimSources, {
         screenCount,
         hasCta,
         templateSlides,
     });
 
-    const coverageRules = normalizedSources
+    const coverageRules = claimSources
         .filter((source) => mustUseClaims.some((claim) => claim.sourceId === source.id))
         .map((source) => `Aproveite pelo menos um detalhe especifico de ${source.label}.`);
 
@@ -448,7 +481,7 @@ export function buildEvidencePack({
     return {
         contentType,
         blueprintSummary: blueprint?.mensagem_principal || blueprint?.tema_central || null,
-        sourceCount: normalizedSources.length,
+        sourceCount: claimSources.length,
         claimCount: claims.length,
         mustUseClaims,
         supportingClaims: claims.slice(mustUseClaims.length, mustUseClaims.length + 8),
@@ -457,7 +490,7 @@ export function buildEvidencePack({
         narrativeAngles,
         slidePlan,
         metadata: {
-            sourceLabels: normalizedSources.map((source) => source.label),
+            sourceLabels: claimSources.map((source) => source.label),
             topSignalTags: Array.from(new Set(mustUseClaims.flatMap((claim) => claim.signalTags))).slice(0, 8),
         },
     };
@@ -490,6 +523,9 @@ export function formatEvidencePackForPrompt(evidencePack) {
         `- Sinal narrativo dominante: ${evidencePack.blueprintSummary || 'nao informado'}`,
         '- Regra inegociavel: cada slide que nao seja CTA deve incorporar pelo menos 1 ancora obrigatoria do plano do proprio slide.',
         '- Se o plano trouxer numero, data, empresa, produto, pessoa ou comparacao concreta, isso precisa aparecer literalmente na copy.',
+        '- Slide 1 precisa parar o scroll: abrir com risco, perda, ruptura, contraste ou consequencia concreta.',
+        '- Sao proibidas aberturas burocraticas no slide 1, como "X revela", "estudo mostra" ou "analise aponta", sem impacto explicito.',
+        '- No hook, prefira o pior desdobramento concreto da fonte ao evento neutro que revelou o problema.',
         '- Antes de responder, valide slide a slide se a ancora obrigatoria realmente apareceu no texto final.',
         '',
         'FATOS QUE DEVEM APARECER NA NARRATIVA:',
@@ -539,6 +575,8 @@ export function analyzeCarouselQuality(slides = [], evidencePack = null) {
         const next = slideAnchors[index + 1];
         const slidePlan = evidencePack?.slidePlan?.[index] || null;
         const isCta = slidePlan?.role === 'cta';
+        const isHook = slidePlan?.role === 'hook';
+        const hookTitle = collectSlideAnchors({ title: slides[index]?.title || '' });
         const matchedRequiredAnchors = (slidePlan?.requiredAnchors || []).filter((anchor) => slideHasAnchor(current, anchor));
 
         if (current.generic) {
@@ -576,6 +614,24 @@ export function analyzeCarouselQuality(slides = [], evidencePack = null) {
                 message: 'Slide menciona pouco da evidencia planejada e continua abstrato demais.',
             });
             score -= 8;
+        }
+
+        if (isHook && !hookHasScrollStoppingSignal(hookTitle)) {
+            issues.push({
+                type: 'weak_hook',
+                slide: index + 1,
+                message: 'Slide 1 abre sem tensao suficiente: falta risco, ruptura, contraste, numero ou consequencia concreta no title.',
+            });
+            score -= 14;
+        }
+
+        if (isHook && looksLikeBureaucraticHook(hookTitle.text) && !hasHookImpact(hookTitle.text) && hookTitle.numeric.length === 0 && !hookTitle.signalTags.includes('contrast')) {
+            issues.push({
+                type: 'bureaucratic_hook',
+                slide: index + 1,
+                message: 'Slide 1 soa como manchete burocratica. Reescreva com conflito, perda, risco ou consequencia explicita logo no title.',
+            });
+            score -= 12;
         }
 
         if (!slides[index]?.subtitle && current.text.split(' ').length <= 6 && current.numeric.length === 0 && current.proper.length === 0) {
@@ -619,7 +675,7 @@ export function analyzeCarouselQuality(slides = [], evidencePack = null) {
 
     return {
         score,
-        passed: score >= 78 && !issues.some((issue) => ['weak_title_only', 'unused_evidence', 'missing_planned_anchor', 'low_specificity'].includes(issue.type)),
+        passed: score >= 78 && !issues.some((issue) => ['weak_title_only', 'unused_evidence', 'missing_planned_anchor', 'low_specificity', 'weak_hook', 'bureaucratic_hook'].includes(issue.type)),
         issues,
         repairBrief,
     };

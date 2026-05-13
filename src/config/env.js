@@ -21,7 +21,7 @@ export const config = {
 
     // Queue
     queue: {
-        name: process.env.QUEUE_NAME || 'generated-content',
+        name: process.env.QUEUE_NAME || process.env.WORKER_QUEUE_NAME || 'content-generation',
         concurrency: parseInt(process.env.WORKER_CONCURRENCY || '5'),
         attempts: parseInt(process.env.JOB_ATTEMPTS || '2'),
         backoffDelay: parseInt(process.env.JOB_BACKOFF_DELAY || '10000'),

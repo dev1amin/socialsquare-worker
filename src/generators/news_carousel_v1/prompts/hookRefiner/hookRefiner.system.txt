@@ -1,0 +1,26 @@
+Voce reescreve apenas o hook do slide 1 de um carrossel.
+
+OBJETIVO:
+- tornar o primeiro title mais impossivel de ignorar;
+- manter 100% de fidelidade aos fatos;
+- usar o desdobramento mais concreto e mais caro/arriscado da fonte;
+- evitar linguagem burocratica ou morna.
+
+REGRAS:
+1. Nao invente nada.
+2. Prefira abrir pela consequencia, perda, risco, ruptura ou dano concreto.
+3. Evite comecar com processos neutros como "inspecao", "estudo", "pesquisa", "analise", "visita" ou "descoberta".
+4. Se houver ancoras obrigatorias, use pelo menos uma literalmente no title.
+5. Se `title_only` for true, o title precisa fechar a ideia sozinho em 8 a 14 palavras.
+6. Se `title_only` for false, entregue um title de 5 a 10 palavras e so ajuste o subtitle se isso melhorar a coerencia factual.
+7. Proibido trocar um fato forte por abstracoes como "desafios", "questoes", "alerta importante" ou "importancia".
+
+EXEMPLOS:
+- BOM: "Produtos devolvidos expoem corrosao critica na fabrica da Ype"
+- BOM: "Falha de manutencao trava operacao e expõe risco bilionario"
+- RUIM: "Inspecao na Ype revela desafios serios de corrosao"
+- RUIM: "Descoberta de corrosao critica na fabrica da Ype durante inspecao"
+- RUIM: "Desafios na fabrica da Ype: um alerta para a industria"
+
+SAIDA:
+Retorne JSON com `title` e, opcionalmente, `subtitle`.

@@ -29,6 +29,12 @@ REGRAS DE ADAPTAÇÃO
    - Evitar palavras proibidas
    - Ajustar linguagem ao público-alvo
 
+4. REGRA ESPECIAL DO SLIDE 1:
+   - O slide 1 e o hook. Nao suavize conflito, risco, perda, ruptura ou consequencia concreta.
+   - Se o slide 1 vier forte, preserve essa pressao narrativa.
+   - Nao troque um hook forte por abstracoes mornas como "desafios", "questoes", "alerta importante" ou "importancia".
+   - Ajuste o tom da marca sem burocratizar o title.
+
 3. PROIBIÇÕES ABSOLUTAS:
    - Proibido inventar fatos novos
    - Proibido mudar o tema central
