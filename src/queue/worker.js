@@ -163,6 +163,9 @@ logger.info(`   TAVILY_API_KEY present: ${!!process.env.TAVILY_API_KEY}`);
 logger.info(`   UNSPLASH_ACCESS_KEY present: ${!!process.env.UNSPLASH_ACCESS_KEY}`);
 logger.info(`   PEXELS_API_KEY present: ${!!process.env.PEXELS_API_KEY}`);
 
+// Export para health check
+export { worker, connection };
+
 // Graceful shutdown
 process.on('SIGTERM', async () => {
     logger.info('SIGTERM received, closing worker...');

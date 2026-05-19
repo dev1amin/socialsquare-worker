@@ -1,4 +1,4 @@
-import { addJobToQueue } from '../../queue/queue.js';
+import { addJobToQueue, contentQueue } from '../../queue/queue.js';
 import { logger } from '../../config/logger.js';
 
 /**
@@ -37,10 +37,48 @@ export const enqueueJob = async (req, res) => {
 /**
  * Healthcheck
  */
-export const healthCheck = (req, res) => {
-    res.json({
-        status: 'ok',
-        service: 'carousel-worker',
-        timestamp: new Date().toISOString(),
-    });
+export const healthCheck = async (req, res) => {
+    try {
+        // Verifica Redis via ping na fila
+        const redisClient = contentQueue.client;
+        let redisStatus = 'unknown';
+        try {
+            await Promise.race([
+                redisClient.ping(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+            ]);
+            redisStatus = 'ok';
+        } catch (e) {
+            redisStatus = `error: ${e.message}`;
+        }
+
+        // Contagem de jobs na fila
+        const [waiting, active, failed] = await Promise.all([
+            contentQueue.getWaitingCount().catch(() => -1),
+            contentQueue.getActiveCount().catch(() => -1),
+            contentQueue.getFailedCount().catch(() => -1),
+        ]);
+
+        const healthy = redisStatus === 'ok';
+
+        res.status(healthy ? 200 : 503).json({
+            status: healthy ? 'ok' : 'degraded',
+            service: 'carousel-worker',
+            timestamp: new Date().toISOString(),
+            redis: redisStatus,
+            queue: {
+                name: contentQueue.name,
+                waiting,
+                active,
+                failed,
+            },
+        });
+    } catch (err) {
+        res.status(503).json({
+            status: 'error',
+            service: 'carousel-worker',
+            timestamp: new Date().toISOString(),
+            error: err.message,
+        });
+    }
 };
