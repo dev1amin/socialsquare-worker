@@ -2,6 +2,9 @@ import app from './app.js';
 import { config } from './config/env.js';
 import { logger } from './config/logger.js';
 
+// Inicia o worker de fila junto com o servidor HTTP
+import './queue/worker.js';
+
 const PORT = config.port;
 
 app.listen(PORT, () => {
