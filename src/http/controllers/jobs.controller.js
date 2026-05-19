@@ -39,25 +39,43 @@ export const enqueueJob = async (req, res) => {
  */
 export const healthCheck = async (req, res) => {
     try {
-        // Verifica Redis via ping na fila
-        const redisClient = contentQueue.client;
+        // Verifica Redis via ping (BullMQ v5: contentQueue.client é uma Promise)
         let redisStatus = 'unknown';
         try {
-            await Promise.race([
-                redisClient.ping(),
+            const redisClient = await Promise.race([
+                contentQueue.client,
                 new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
             ]);
+            await redisClient.ping();
             redisStatus = 'ok';
         } catch (e) {
             redisStatus = `error: ${e.message}`;
         }
 
         // Contagem de jobs na fila
-        const [waiting, active, failed] = await Promise.all([
+        const [waiting, active, failed, failedJobs] = await Promise.all([
             contentQueue.getWaitingCount().catch(() => -1),
             contentQueue.getActiveCount().catch(() => -1),
             contentQueue.getFailedCount().catch(() => -1),
+            contentQueue.getFailed(0, 2).catch(() => []),
         ]);
+
+        // Últimos erros dos jobs falhos
+        const recentErrors = failedJobs.map(j => ({
+            id: j.id,
+            name: j.name,
+            failedReason: j.failedReason,
+            attemptsMade: j.attemptsMade,
+        }));
+
+        // Variáveis de ambiente presentes
+        const envCheck = {
+            SUPABASE_URL: !!process.env.SUPABASE_URL,
+            SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+            OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
+            REDIS_URL: !!process.env.REDIS_URL,
+            WORKER_SECRET: !!process.env.WORKER_SECRET,
+        };
 
         const healthy = redisStatus === 'ok';
 
@@ -72,6 +90,8 @@ export const healthCheck = async (req, res) => {
                 active,
                 failed,
             },
+            recentErrors,
+            env: envCheck,
         });
     } catch (err) {
         res.status(503).json({
