@@ -4,6 +4,28 @@ import { logger } from '../../../config/logger.js';
 import { PromptLoader } from '../utils/promptLoader.js';
 import { recordTokens } from '../../../shared/tokenUtils.js';
 
+function normalizeOptionalText(value) {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+}
+
+export function mergeKeywordSignals(slides = [], generatedSlides = []) {
+    return slides.map((originalSlide, index) => {
+        const generatedSlide = generatedSlides[index] || {};
+        const keyword = normalizeOptionalText(generatedSlide.keyword);
+        const entityName = normalizeOptionalText(generatedSlide.entity_name);
+        const googleKeyword = normalizeOptionalText(generatedSlide.google_keyword);
+
+        return {
+            ...originalSlide,
+            keyword: keyword || originalSlide.keyword || null,
+            entity_name: entityName || null,
+            google_keyword: googleKeyword || null,
+        };
+    });
+}
+
 /**
  * Keyword Agent: adiciona keywords em inglês para busca de imagens no Unsplash
  * Keywords devem ser visuais, concretas e retornar boas fotos
@@ -49,9 +71,10 @@ export class KeywordAgent {
             }
 
             const result = JSON.parse(completion.choices[0].message.content);
-            logger.debug(`Added keywords to ${result.slides?.length || 0} slides`);
+            const mergedSlides = mergeKeywordSignals(slides, result.slides || []);
+            logger.debug(`Added keywords to ${mergedSlides.length} slides`);
 
-            return result.slides || slides;
+            return mergedSlides;
         } catch (error) {
             const err = new Error(`Keyword generation failed: ${error.message}`);
             err.stage = 'keyword';

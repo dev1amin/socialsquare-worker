@@ -28,6 +28,13 @@ const NOISE_PATTERNS = [
     /\bshare february\b/i,
 ];
 
+const CTA_CLAIM_PATTERNS = [
+    /\b(?:comment|comente|comentar)\b.*\b(?:prompt|guia|guide|template|freebie|ebook|checklist|send|enviar|manda|mando)\b/i,
+    /\b(?:i'?ll send|vou enviar|vou te enviar|te envio|te mando|send you)\b/i,
+    /\b(?:link in bio|link na bio|dm|direct message|mensagem direta)\b/i,
+    /\b(?:freebie|ebook|checklist|template gratis|template gratuito|recurso gratuito|material gratuito)\b/i,
+];
+
 const SIGNAL_PATTERNS = {
     number: /(?:\b\d{1,4}(?:[\.,]\d+)?%\b|\b\d{1,4}(?:[\.,]\d+)?\b|R\$\s?\d|US\$\s?\d|\b\d+x\b)/i,
     date: /\b(?:20\d{2}|19\d{2}|jan(?:eiro)?|fev(?:ereiro)?|mar(?:co|ço)?|abr(?:il)?|mai(?:o)?|jun(?:ho)?|jul(?:ho)?|ago(?:sto)?|set(?:embro)?|out(?:ubro)?|nov(?:embro)?|dez(?:embro)?)\b/i,
@@ -115,6 +122,10 @@ function splitIntoClaims(text) {
 
 function looksLikeNoiseClaim(text) {
     return NOISE_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+export function looksLikeCtaClaim(text) {
+    return CTA_CLAIM_PATTERNS.some((pattern) => pattern.test(text));
 }
 
 function extractProperNouns(text) {
@@ -239,13 +250,17 @@ function buildSourceEntry(source, index) {
     };
 }
 
-function buildClaimsFromSources(sources) {
+function buildClaimsFromSources(sources, { hasCta = false } = {}) {
     const allClaims = [];
 
     for (const source of sources) {
         const claims = splitIntoClaims(source.content);
 
         claims.forEach((claimText, index) => {
+            if (!hasCta && looksLikeCtaClaim(claimText)) {
+                return;
+            }
+
             const scored = scoreClaim(claimText, source, index, claims.length);
 
             allClaims.push({
@@ -457,7 +472,7 @@ export function buildEvidencePack({
 
     const evidenceSources = normalizedSources.filter((source) => source.type !== 'context');
     const claimSources = evidenceSources.length > 0 ? evidenceSources : normalizedSources;
-    const claims = buildClaimsFromSources(claimSources);
+    const claims = buildClaimsFromSources(claimSources, { hasCta });
     const mustUseClaims = claims.slice(0, Math.min(Math.max(screenCount + 2, 6), 14));
     const slidePlan = buildSlidePlan(mustUseClaims, claimSources, {
         screenCount,
