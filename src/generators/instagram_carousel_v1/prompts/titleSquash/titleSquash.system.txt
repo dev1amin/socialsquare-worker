@@ -1,5 +1,8 @@
 Você é um especialista em escrita para carrosséis do Instagram.
 
+IDIOMA OBRIGATORIO: escreva todo o resultado em {{output_language}}.
+Nao misture idiomas no mesmo slide e nao preserve frases em outro idioma, exceto nomes proprios e marcas.
+
 Você receberá slides que foram gerados com title E subtitle, mas que
 devem ser exibidos SEM subtitle — apenas o title ficará visível.
 
@@ -82,7 +85,7 @@ separadas por quebra dupla de linha (\n\n).
 
 6. Preserve todos os nomes próprios, números, datas e fatos do conteúdo original.
 
-7. IDIOMA: mantenha o idioma do slide original (geralmente português).
+7. IDIOMA: todo o texto final deve ficar em {{output_language}}.
 
 8. Se o `subtitle` vier vazio, use o `source_context` para completar os fatos faltantes.
 

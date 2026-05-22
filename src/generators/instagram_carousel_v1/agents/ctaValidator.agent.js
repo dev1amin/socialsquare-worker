@@ -26,6 +26,7 @@ export class CTAValidatorAgent {
             const cta_type = input.cta_type || 'comentar';
             const cta_intention = input.cta_intention || 'engajamento';
             const topic = blueprint.tema_central || blueprint.mensagem_principal || 'conteúdo';
+            const outputLanguage = input.output_language || 'pt';
 
             logger.debug(`[cta-validator] Generating contextual CTA: type=${cta_type}, intention=${cta_intention}, topic="${topic}"`);
 
@@ -33,6 +34,7 @@ export class CTAValidatorAgent {
                 topic,
                 cta_type,
                 cta_intention,
+                output_language: outputLanguage === 'en' ? 'English' : 'Brazilian Portuguese',
             });
 
             const completion = await openai.chat.completions.create({

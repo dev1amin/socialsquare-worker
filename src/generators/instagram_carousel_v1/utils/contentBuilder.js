@@ -11,6 +11,8 @@
  * - input.context (instruções do usuário)
  */
 
+import { buildOutputLanguageInstruction, resolveOutputLanguage } from '../../shared/utils/outputLanguage.js';
+
 /**
  * Constrói o texto original combinando todas as fontes disponíveis
  * @param {Object} content - Objeto de conteúdo do orchestrator
@@ -109,6 +111,18 @@ Certifique-se de:
         
         contextText = contextText + instruction;
     }
+
+    const outputLanguage = resolveOutputLanguage({
+        explicitLanguage: input.output_language || input.lang,
+        sourceTexts: [
+            input.post_text,
+            ...(Array.isArray(allCaptions) ? allCaptions : []),
+            ...(Array.isArray(additionalTexts) ? additionalTexts : []),
+            contextText,
+        ],
+    });
+
+    contextText += buildOutputLanguageInstruction(outputLanguage);
     
     return contextText;
 }

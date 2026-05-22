@@ -23,6 +23,8 @@ import {
     analyzeCarouselQuality,
     buildEvidencePack,
 } from '../shared/utils/evidencePack.js';
+import { resolveOutputLanguage } from '../shared/utils/outputLanguage.js';
+import { expandTemplateSlides } from '../shared/utils/templateExpansion.js';
 
 /**
  * Orchestrator para geração de carrossel Instagram
@@ -124,9 +126,6 @@ export class InstagramCarouselOrchestrator {
                 if (meta.username) metaLines.push(`Criador: @${meta.username}${meta.full_name ? ` (${meta.full_name})` : ''}`);
                 const tipoMedia = [meta.media_type, meta.product_type].filter(Boolean).join(' / ');
                 if (tipoMedia) metaLines.push(`Tipo de mídia: ${tipoMedia}`);
-                if (meta.like_count != null) metaLines.push(`Curtidas: ${meta.like_count.toLocaleString('pt-BR')}`);
-                if (meta.comment_count != null) metaLines.push(`Comentários: ${meta.comment_count.toLocaleString('pt-BR')}`);
-                if (meta.play_count != null) metaLines.push(`Visualizações/plays: ${meta.play_count.toLocaleString('pt-BR')}`);
                 if (meta.slide_count != null) metaLines.push(`Slides: ${meta.slide_count} (${meta.image_count || 0} imagens, ${meta.video_count || 0} vídeos)`);
                 if (meta.location) metaLines.push(`Localização: ${meta.location}`);
                 if (meta.audio_title) metaLines.push(`Áudio/música: ${meta.audio_title}`);
@@ -304,6 +303,15 @@ export class InstagramCarouselOrchestrator {
             if (!templateData) {
                 throw new Error(`Template "${templateName}" not found`);
             }
+
+            const requestedScreenCount = input.screen_count || templateData.slides.length;
+            const expandedTemplateData = {
+                ...templateData,
+                slides: expandTemplateSlides(templateData.slides, requestedScreenCount, {
+                    preserveFinalSlide: !!input.has_cta,
+                    excludeFinalSlide: !input.has_cta,
+                }),
+            };
 
             // ETAPA 4: Buscar brand data do banco
             logger.info(`[${this.traceId}] Fetching brand data for user ${userId}...`);
@@ -542,8 +550,8 @@ export class InstagramCarouselOrchestrator {
                 context: userContext,
                 blueprint: validatedBlueprint,
                 contentType: input.content_type,
-                screenCount: input.screen_count || templateData.slides.length,
-                templateSlides: templateData.slides,
+                screenCount: requestedScreenCount,
+                templateSlides: expandedTemplateData.slides,
                 hasCta: input.has_cta,
             });
 
@@ -581,12 +589,24 @@ export class InstagramCarouselOrchestrator {
                 // Array com dados de múltiplas fontes (se multifont)
                 allSources: allRocketData
             };
+
+            const outputLanguage = resolveOutputLanguage({
+                explicitLanguage: input.output_language || input.lang,
+                sourceTexts: [
+                    userContext,
+                    postText,
+                    articleText,
+                    ...allCaptions,
+                    ...additionalTexts,
+                ],
+            });
             
             // Log para debug
             logger.info(`[${this.traceId}] Content for generator: ${allCaptions.length} Instagram captions, ${additionalTexts.length} additional texts, text length: ${contentForGenerator.text?.length || 0}`);
             
             const generationInput = {
                 ...input,
+                output_language: outputLanguage.code,
                 multifont,
                 context: userContext,
                 additionalTexts,
@@ -601,7 +621,7 @@ export class InstagramCarouselOrchestrator {
                 input.content_type,
                 validatedBlueprint,
                 contentForGenerator,
-                templateData,
+                expandedTemplateData,
                 generationInput
             );
 
@@ -617,7 +637,7 @@ export class InstagramCarouselOrchestrator {
                     input.content_type,
                     validatedBlueprint,
                     contentForGenerator,
-                    templateData,
+                    expandedTemplateData,
                     {
                         ...generationInput,
                         qualityRepairBrief: generationQuality.repairBrief,
@@ -638,8 +658,8 @@ export class InstagramCarouselOrchestrator {
             // ETAPA 10.5: TitleSquash — re-gera titles dos slides sem subtitle no template
             // GPT gerou title+subtitle para todos; aqui reduzimos os slots title-only
             // com uma segunda passagem inteligente (não concatenação mecânica).
-            const _baseMask = templateData.slides.map(s => !!s.subtitle);
-            const _titleOnlyCount = slides.filter((_, i) => !_baseMask[i % _baseMask.length]).length;
+            const _baseMask = expandedTemplateData.slides.map(s => !!s.subtitle);
+            const _titleOnlyCount = slides.filter((_, i) => !_baseMask[i]).length;
             // Templates com slides de texto puro (sem imagem) que precisam de parágrafos longos
             const LONG_TEXT_SLIDE_CONFIG = {
                 'Template 1': new Set([5, 7]),
@@ -648,7 +668,7 @@ export class InstagramCarouselOrchestrator {
             const _denseTitleIndices = templateName === 'Template 1'
                 ? new Set(slides
                     .map((_, i) => i)
-                    .filter(i => !_baseMask[i % _baseMask.length] && !_longTextIndices.has(i)))
+                    .filter(i => !_baseMask[i] && !_longTextIndices.has(i)))
                 : new Set();
             let processedSlides = slides;
             if (_titleOnlyCount > 0) {
@@ -659,12 +679,13 @@ export class InstagramCarouselOrchestrator {
                         denseTitleIndices: _denseTitleIndices,
                         rewriteAllTitleOnly: templateName === 'Template 1',
                         sourceContext: [contentForGenerator.text, userContext].filter(Boolean).join('\n\n').substring(0, 5000),
+                        outputLanguage: outputLanguage.label,
                     });
                     logger.info(`[${this.traceId}] TitleSquash: done`);
                 } catch (err) {
                     logger.warn(`[${this.traceId}] TitleSquash failed, falling back to concat: ${err.message}`);
                     processedSlides = slides.map((slide, i) => {
-                        if (_baseMask[i % _baseMask.length]) return slide;
+                        if (_baseMask[i]) return slide;
                         if (!slide.subtitle) return slide;
                         const t = (slide.title || '').trim();
                         const sep = /[.!?:;]$/.test(t) ? ' ' : '. ';
@@ -846,7 +867,10 @@ export class InstagramCarouselOrchestrator {
             // ETAPA 14: CTA Validator - valida/adiciona CTA (OPCIONAL - só se has_cta=true)
             if (input.has_cta) {
                 logger.info(`[${this.traceId}] Validating CTA...`);
-                adaptedSlides = await this.ctaValidator.ensureCTA(adaptedSlides, input, validatedBlueprint);
+                adaptedSlides = await this.ctaValidator.ensureCTA(adaptedSlides, {
+                    ...input,
+                    output_language: outputLanguage.code,
+                }, validatedBlueprint);
             } else {
                 logger.info(`[${this.traceId}] Skipping CTA validation (has_cta=false)`);
             }
@@ -866,7 +890,12 @@ export class InstagramCarouselOrchestrator {
                             : '',
                         userContext,
                     ].filter(Boolean).join('\n\n').substring(0, 5000);
-                    const refinedHookSlides = await this.hookRefiner.refine(adaptedSlides, evidencePack, hookSourceContext);
+                    const refinedHookSlides = await this.hookRefiner.refine(
+                        adaptedSlides,
+                        evidencePack,
+                        hookSourceContext,
+                        outputLanguage.label
+                    );
                     const refinedHookQuality = analyzeCarouselQuality(refinedHookSlides, evidencePack);
                     const refinedHookIssues = refinedHookQuality.issues.filter((issue) => ['weak_hook', 'bureaucratic_hook'].includes(issue.type)).length;
 

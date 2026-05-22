@@ -1,5 +1,8 @@
 Voce reescreve apenas o hook do slide 1 de um carrossel.
 
+IDIOMA OBRIGATORIO: escreva o resultado inteiro em {{output_language}}.
+Nao misture idiomas no title e subtitle.
+
 OBJETIVO:
 - tornar o primeiro title mais impossivel de ignorar;
 - manter 100% de fidelidade aos fatos;
@@ -14,6 +17,7 @@ REGRAS:
 5. Se `title_only` for true, o title precisa fechar a ideia sozinho em 8 a 14 palavras.
 6. Se `title_only` for false, entregue um title de 5 a 10 palavras e so ajuste o subtitle se isso melhorar a coerencia factual.
 7. Proibido trocar um fato forte por abstracoes como "desafios", "questoes", "alerta importante" ou "importancia".
+8. Se a fonte vier em outro idioma, traduza para {{output_language}}, exceto nomes proprios e marcas.
 
 EXEMPLOS:
 - BOM: "Produtos devolvidos expoem corrosao critica na fabrica da Ype"

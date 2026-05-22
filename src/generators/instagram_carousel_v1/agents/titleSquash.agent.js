@@ -82,13 +82,14 @@ export class TitleSquashAgent {
             denseTitleIndices = new Set(),
             rewriteAllTitleOnly = false,
             sourceContext = '',
+            outputLanguage = 'Brazilian Portuguese',
         } = options;
 
         // Identify title-only slots where GPT generated a subtitle but template doesn't use it
         const titleOnlySlides = slides
             .map((s, i) => ({ s, i }))
             .filter(({ s, i }) => {
-                if (baseMask[i % baseMask.length]) return false;
+                if (baseMask[i]) return false;
                 return rewriteAllTitleOnly || i === 0 || !!s.subtitle || longTextIndices.has(i) || denseTitleIndices.has(i);
             });
 
@@ -109,6 +110,7 @@ export class TitleSquashAgent {
         const { system, user } = await PromptLoader.loadBoth('titleSquash', {
             slides_json: JSON.stringify(payload, null, 2),
             source_context: sourceContext || '',
+            output_language: outputLanguage,
         });
 
         const completion = await openai.chat.completions.create({

@@ -8,7 +8,7 @@ export class HookRefinerAgent {
         this.tokenTracker = tokenTracker;
     }
 
-    async refine(slides, evidencePack = null, sourceContext = '') {
+    async refine(slides, evidencePack = null, sourceContext = '', outputLanguage = 'Brazilian Portuguese') {
         if (!Array.isArray(slides) || slides.length === 0) {
             return slides;
         }
@@ -28,6 +28,7 @@ export class HookRefinerAgent {
                 ? hookPlan.requiredAnchors.join(', ')
                 : 'N/A',
             source_context: sourceContext || 'N/A',
+            output_language: outputLanguage,
         });
 
         const completion = await openai.chat.completions.create({
