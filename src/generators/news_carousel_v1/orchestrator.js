@@ -21,6 +21,11 @@ import {
     analyzeCarouselQuality,
     buildEvidencePack,
 } from '../shared/utils/evidencePack.js';
+import {
+    sanitizeCarouselDescription,
+    sanitizeCarouselSlides,
+} from '../shared/utils/carouselText.js';
+import { assertCarouselQualityPassed } from '../shared/utils/qualityGate.js';
 
 /**
  * Orchestrator para geração de carrossel News
@@ -616,6 +621,10 @@ export class NewsCarouselOrchestrator {
                 issues: finalQuality.issues.length,
             });
 
+            assertCarouselQualityPassed(finalQuality, {
+                stage: 'final_copy',
+            });
+
             // ETAPA 13: Description Agent - gera descrição final do carrossel
             logger.info(`[${this.traceId}] Generating carousel description...`);
             const description = await this.descriptionAgent.generate({
@@ -665,6 +674,8 @@ export class NewsCarouselOrchestrator {
      * ⚠️ MÚLTIPLAS FONTES: Inclui informação de todas as fontes no metadata
      */
     buildFinalResult(slides, description, blueprint, allNewsData, brandData, input, userId, businessId, allUrls, evidencePack, qualityReport) {
+        const sanitizedSlides = sanitizeCarouselSlides(slides);
+        const sanitizedDescription = sanitizeCarouselDescription(description);
         const multifont = input.multifont === true;
         const additionalUrls = this.getAdditionalUrls(input);
         
@@ -674,12 +685,12 @@ export class NewsCarouselOrchestrator {
                 arroba: brandData?.instagram || '',
                 foto_perfil: brandData?.logo_url || '',
                 template: input.template,
-                description,
+                description: sanitizedDescription,
                 // NOVO: Indicar se foi gerado a partir de múltiplas fontes
                 multifont,
                 sources: multifont ? allUrls : [input.url]
             },
-            conteudos: slides.map(slide => ({
+            conteudos: sanitizedSlides.map(slide => ({
                 title: slide.title,
                 subtitle: (slide.subtitle !== undefined && slide.subtitle !== null && slide.subtitle !== '') ? slide.subtitle : null,
                 keyword: slide.keyword,

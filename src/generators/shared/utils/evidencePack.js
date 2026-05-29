@@ -1,3 +1,5 @@
+import { looksLikeBrokenEncoding } from './carouselText.js';
+
 const GENERIC_PATTERNS = [
     /\b(?:descubra|saiba|aprenda|veja|entenda|conheca)\b/i,
     /\b(?:neste carrossel|nesse carrossel|neste post|nesse post)\b/i,
@@ -624,12 +626,28 @@ export function analyzeCarouselQuality(slides = [], evidencePack = null) {
         const slidePlan = evidencePack?.slidePlan?.[index] || null;
         const isCta = slidePlan?.role === 'cta';
         const isHook = slidePlan?.role === 'hook';
+        const isClosing = slidePlan?.role === 'closing';
         const hookTitle = collectSlideAnchors({ title: slides[index]?.title || '' });
         const matchedRequiredAnchors = (slidePlan?.requiredAnchors || []).filter((anchor) => slideHasAnchor(current, anchor));
+        const priorAnchors = Array.from(new Set(
+            slideAnchors
+                .slice(0, index)
+                .flatMap((anchor) => [...anchor.numeric, ...anchor.proper, ...anchor.keywords])
+                .filter(Boolean),
+        ));
 
         if (current.generic) {
             issues.push({ type: 'generic_language', slide: index + 1, message: 'Slide com frase vaga ou formulaica.' });
             score -= 8;
+        }
+
+        if (current.text && looksLikeBrokenEncoding(current.text)) {
+            issues.push({
+                type: 'broken_encoding',
+                slide: index + 1,
+                message: 'Slide contem caractere corrompido ou mojibake (ex.: Ã, Â, �). Corrija para PT-BR legivel antes de devolver.',
+            });
+            score -= 18;
         }
 
         if (!isCta && slidePlan?.requiredAnchors?.length && matchedRequiredAnchors.length === 0) {
@@ -682,13 +700,19 @@ export function analyzeCarouselQuality(slides = [], evidencePack = null) {
             score -= 12;
         }
 
+        if (isClosing && priorAnchors.length > 0) {
+            const referencesNarrative = priorAnchors.some((anchor) => slideHasAnchor(current, anchor));
+            if (!referencesNarrative) {
+                issues.push({
+                    type: 'detached_closing',
+                    slide: index + 1,
+                    message: 'Slide final fecha no abstrato e nao recupera nenhum elemento concreto ja provado antes.',
+                });
+                score -= 12;
+            }
+        }
+
         if (isCta) {
-            const priorAnchors = Array.from(new Set(
-                slideAnchors
-                    .slice(0, index)
-                    .flatMap((anchor) => [...anchor.numeric, ...anchor.proper, ...anchor.keywords])
-                    .filter(Boolean),
-            ));
             const referencesNarrative = priorAnchors.some((anchor) => slideHasAnchor(current, anchor));
 
             if (looksLikeGenericCta(current.text) && !referencesNarrative) {
@@ -742,7 +766,7 @@ export function analyzeCarouselQuality(slides = [], evidencePack = null) {
 
     return {
         score,
-        passed: score >= 78 && !issues.some((issue) => ['weak_title_only', 'unused_evidence', 'missing_planned_anchor', 'low_specificity', 'weak_hook', 'bureaucratic_hook', 'generic_cta'].includes(issue.type)),
+        passed: score >= 82 && !issues.some((issue) => ['weak_title_only', 'unused_evidence', 'missing_planned_anchor', 'low_specificity', 'thin_evidence', 'weak_hook', 'bureaucratic_hook', 'generic_cta', 'repetition', 'broken_encoding', 'detached_closing'].includes(issue.type)),
         issues,
         repairBrief,
     };

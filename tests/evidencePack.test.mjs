@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildEvidencePack } from '../src/generators/shared/utils/evidencePack.js';
+import { analyzeCarouselQuality, buildEvidencePack } from '../src/generators/shared/utils/evidencePack.js';
 
 test('buildEvidencePack ignores Instagram metadata wrappers as narrative claims', () => {
     const evidencePack = buildEvidencePack({
@@ -25,4 +25,25 @@ test('buildEvidencePack ignores Instagram metadata wrappers as narrative claims'
         evidencePack.mustUseClaims.some((claim) => /Agus Panzoni|intellectualism|Thinking is so in/i.test(claim.text)),
         true,
     );
+});
+
+test('analyzeCarouselQuality flags broken encoding and abstract closing as blocking issues', () => {
+    const quality = analyzeCarouselQuality(
+        [
+            { title: 'Banco Central muda o jogo', subtitle: 'A Selic subiu 2 pontos e encareceu o credito.' },
+            { title: 'O caixa sente primeiro', subtitle: 'Empresas menores pagam a conta antes do resto do mercado.' },
+            { title: 'NÃ£o basta refletir', subtitle: 'Precisamos acompanhar essa nova era com mais consciencia.' },
+        ],
+        {
+            slidePlan: [
+                { role: 'hook' },
+                { role: 'proof' },
+                { role: 'closing' },
+            ],
+        },
+    );
+
+    assert.equal(quality.passed, false);
+    assert.ok(quality.issues.some((issue) => issue.type === 'broken_encoding'));
+    assert.ok(quality.issues.some((issue) => issue.type === 'detached_closing'));
 });

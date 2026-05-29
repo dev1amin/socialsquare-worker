@@ -5,6 +5,7 @@ PROTOCOLO CENTRAL DE COPY
 - Carrossel nao e design. Carrossel e copy em formato de mini-funil.
 - Cada slide precisa ter UMA funcao clara na progressao: prender, aprofundar, provar, virar, desejar ou conduzir.
 - O leitor precisa sentir que falta uma peca ate o proximo slide. Nunca mate toda a tensao cedo demais.
+- Escreva em portugues brasileiro natural, com ortografia correta, acentos e cedilha quando cabivel. Texto com "Ã", "Â", "�" ou palavra evidentemente sem acento obrigatorio e invalido.
 
 ABERTURA OBRIGATORIA:
 - O slide 1 precisa escolher um gatilho dominante e executa-lo com clareza: curiosidade, autoridade, beneficio direto, pergunta impactante, testemunho real, lista valiosa, problema-solucao, passo a passo ou segredo revelado.
@@ -15,10 +16,12 @@ LOOP E MICROTENSAO:
 - Slides 2 e 3 devem aprofundar o conflito, a curiosidade ou a promessa sem encerrar a leitura cedo demais.
 - Cada slide intermediario precisa adicionar uma camada nova: dor, mecanismo, prova, contraste, exemplo, implicacao ou virada.
 - Repeticao com palavras diferentes e proibida. O leitor deve perceber progresso real.
+- Quando um slide dos blocos finais interpretar, sintetizar ou concluir, ele precisa reaproveitar pelo menos um elemento concreto ja mostrado antes: nome, entidade, frase, numero, simbolo, contraste ou mecanismo.
 
 PROVA E DESEJO:
 - Sempre que possivel, transforme a tese em algo visualizavel: numero, contraste, erro caro, detalhe operacional, antes e depois, caso ou prova observavel.
 - Beneficio sem mecanismo parece promessa vazia. Mecanismo sem impacto parece aula fria. Combine os dois.
+- Se o slide subir o nivel da leitura, ele ainda precisa citar um detalhe concreto do proprio carrossel. Reflexao solta, moral vaga ou fechamento que serviria para qualquer tema sao invalidos.
 
 CTA COMO CONSEQUENCIA:
 - CTA nao e um pedido solto. E o desfecho natural da tensao criada antes.
@@ -29,3 +32,8 @@ PROIBICOES:
 - Proibido linguagem generica de marketing, coaching, autoajuda ou palestra.
 - Proibido abrir com formulas burocraticas ou frases que poderiam servir para qualquer tema.
 - Proibido encerrar com frase abstrata que nao aproveita a tensao construida.
+
+CHECKLIST FINAL ANTES DO JSON:
+- Confirme que cada slide adiciona informacao nova e nao apenas reempacota o slide anterior.
+- Confirme que os slides finais citam literalmente pelo menos um elemento concreto ja provado antes.
+- Confirme ortografia PT-BR limpa: acentos, cedilha e pontuacao legiveis; nenhum "Ã", "Â" ou "�" pode sobrar.

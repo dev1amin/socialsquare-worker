@@ -24,6 +24,15 @@ import {
     analyzeCarouselQuality,
     buildEvidencePack,
 } from '../shared/utils/evidencePack.js';
+import {
+    sanitizeCarouselDescription,
+    sanitizeCarouselSlides,
+} from '../shared/utils/carouselText.js';
+import {
+    getTavilySearchQuery,
+    shouldUseTavilyImageSearch,
+} from '../shared/utils/imageSearchRouting.js';
+import { assertCarouselQualityPassed } from '../shared/utils/qualityGate.js';
 import { resolveOutputLanguage } from '../shared/utils/outputLanguage.js';
 import { expandTemplateSlides } from '../shared/utils/templateExpansion.js';
 
@@ -755,19 +764,14 @@ export class InstagramCarouselOrchestrator {
                     .map((s, idx) => ({ s, idx }))
                     .filter(({ s }) => {
                         if (s._googleImageUsed) return false;
-                        // Usa entity_name (nome próprio extraído pelo keyword agent) ou google_keyword
-                        return (s.entity_name && s.entity_name.trim()) ||
-                               (s.google_keyword && s.google_keyword.trim());
+                        return shouldUseTavilyImageSearch(s);
                     });
 
                 if (entitySlides.length > 0) {
                     logger.info(`[${this.traceId}] Fetching Tavily images for ${entitySlides.length} named-entity slides...`);
                     const results = await Promise.all(
                         entitySlides.map(({ s }) => {
-                            // entity_name tem prioridade (nome literal); google_keyword como fallback
-                            const query = (s.entity_name && s.entity_name.trim())
-                                ? s.entity_name.trim()
-                                : s.google_keyword.trim();
+                            const query = getTavilySearchQuery(s);
                             return searchPersonImages(query, { appendPhoto: false });
                         })
                     );
@@ -931,6 +935,10 @@ export class InstagramCarouselOrchestrator {
                 issues: finalQuality.issues.length,
             });
 
+            assertCarouselQualityPassed(finalQuality, {
+                stage: 'final_copy',
+            });
+
             // ETAPA 15: Description Agent - gera descrição final do carrossel
             logger.info(`[${this.traceId}] Generating carousel description...`);
             const description = await this.descriptionAgent.generate({
@@ -982,6 +990,9 @@ export class InstagramCarouselOrchestrator {
      * ⚠️ MÚLTIPLAS FONTES: Inclui informação de todas as fontes no metadata
      */
     buildFinalResult(slides, description, blueprint, allRocketData, brandData, input, userId, businessId, allCodes, researchResult, evidencePack, qualityReport) {
+        const sanitizedSlides = sanitizeCarouselSlides(slides);
+        const sanitizedDescription = sanitizeCarouselDescription(description);
+
         // Normalizar allRocketData para trabalhar tanto com array quanto com objeto único
         const rocketDataArray = Array.isArray(allRocketData) ? 
             allRocketData.map(item => item?.data || item) : 
@@ -992,13 +1003,13 @@ export class InstagramCarouselOrchestrator {
 
         return {
             // CAMPO RAIZ: description para acesso direto pela API
-            description,
+            description: sanitizedDescription,
             dados_gerais: {
                 nome: brandData?.name || 'Unknown',
                 arroba: brandData?.instagram || '',
                 foto_perfil: brandData?.logo_url || '',
                 template: input.template,
-                description,
+                description: sanitizedDescription,
                 // NOVO: Indicar se foi gerado a partir de múltiplas fontes
                 multifont,
                 sources: multifont ? allCodes : [input.code]
@@ -1010,7 +1021,7 @@ export class InstagramCarouselOrchestrator {
                 snippet: (s.content || '').substring(0, 240),
                 publishedDate: s.publishedDate,
             })),
-            conteudos: slides.map(slide => ({
+            conteudos: sanitizedSlides.map(slide => ({
                 title: slide.title,
                 subtitle: (slide.subtitle !== undefined && slide.subtitle !== null && slide.subtitle !== '') ? slide.subtitle : null,
                 keyword: slide.keyword,
