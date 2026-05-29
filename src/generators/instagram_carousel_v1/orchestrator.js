@@ -18,6 +18,7 @@ import { HookRefinerAgent } from './agents/hookRefiner.agent.js';
 import { CTAValidatorAgent } from './agents/ctaValidator.agent.js';
 import { DescriptionAgent } from './agents/description.agent.js';
 import { ResearchAgent } from './agents/research.agent.js';
+import { pickResearchTopic } from './utils/researchTopic.js';
 import { trackUsage } from '../../services/pricingTracker.service.js';
 import {
     analyzeCarouselQuality,
@@ -474,11 +475,14 @@ export class InstagramCarouselOrchestrator {
             // Fonte 4: Pesquisa prévia com fontes confiáveis (Tavily — best-effort)
             let researchResult = null;
             try {
-                // Tópico da pesquisa: usa userContext; se vazio, usa primeira caption ou nome do negócio
+                // Tópico da pesquisa: prioriza contexto explicito do usuario e ignora instrucoes automaticas.
                 const firstCaption = allRocketData[0]?.data?.metadata?.caption || allRocketData[0]?.data?.caption || '';
-                const researchTopic = (userContext && userContext.trim())
-                    || (firstCaption ? firstCaption.substring(0, 200) : '')
-                    || (brandData?.objective || brandData?.name || '');
+                const researchTopic = pickResearchTopic({
+                    userContext,
+                    firstCaption,
+                    businessObjective: brandData?.objective,
+                    businessName: brandData?.name,
+                });
 
                 if (researchTopic) {
                     const shortCtx = [brandData?.name, brandData?.objective, brandData?.target_audience]

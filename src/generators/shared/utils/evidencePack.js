@@ -126,7 +126,21 @@ function splitIntoClaims(text) {
 }
 
 function looksLikeNoiseClaim(text) {
-    return NOISE_PATTERNS.some((pattern) => pattern.test(text));
+    return NOISE_PATTERNS.some((pattern) => pattern.test(text)) || looksLikeSourceMetadataClaim(text);
+}
+
+function looksLikeSourceMetadataClaim(text) {
+    const normalized = normalizeKey(text);
+    if (!normalized) return false;
+
+    const metadataSignals = [
+        /\bconteudo principal instagram\b|\bfonte instagram\b/.test(normalized),
+        /\bcriador\b|\btipo de midia\b|\blegenda\b|\bhashtags?\b|\baudio\/?musica\b/.test(normalized),
+        /\bslides?\b.*\b(?:imagens?|videos?)\b/.test(normalized),
+        /\bcarousel_container\b|\bproduct_type\b/.test(normalized),
+    ].filter(Boolean).length;
+
+    return metadataSignals >= 2;
 }
 
 export function looksLikeCtaClaim(text) {

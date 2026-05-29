@@ -1,12 +1,12 @@
 import { logger } from '../config/logger.js';
-import { env } from '../config/env.js';
+import { config } from '../config/env.js';
 
 const API_URL = 'https://www.googleapis.com/customsearch/v1';
 
 class GoogleImagesService {
     constructor() {
-        this.apiKey = env.googleImages?.apiKey;
-        this.cx = env.googleImages?.searchEngineId;
+        this.apiKey = config.googleImages?.apiKey;
+        this.cx = config.googleImages?.searchEngineId;
     }
 
     isConfigured() {

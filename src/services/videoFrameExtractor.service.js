@@ -8,6 +8,7 @@ import { logger } from '../config/logger.js';
 class VideoFrameExtractorService {
     constructor() {
         this.apiUrl = process.env.VIDEO_EXTRACT_API_URL || 'http://apivftomc_template_raid-evolvingai:8000/extract-video';
+        this.maxConcurrency = Math.max(1, Number.parseInt(process.env.VIDEO_EXTRACT_CONCURRENCY || '2', 10) || 2);
 
         // Parâmetros fixos
         this.fixedParams = {
@@ -90,7 +91,10 @@ class VideoFrameExtractorService {
             const errorMsg = error.name === 'AbortError' ? 'Request timeout (90s)' : error.message;
             logger.error(`✗ Error extracting frame: ${errorMsg}`);
             logger.debug(`Error stack: ${error.stack}`);
-            return { videoUrl: null, thumbnailUrl: null };
+            return {
+                videoUrl: videoUrl || null,
+                thumbnailUrl: thumbnailUrl || null,
+            };
         }
     }
 
@@ -104,22 +108,37 @@ class VideoFrameExtractorService {
             return [];
         }
 
-        logger.info(`🎬 Extracting frames from ${videoSlides.length} videos`);
+        logger.info(`🎬 Extracting frames from ${videoSlides.length} videos (concurrency=${this.maxConcurrency})`);
 
-        const promises = videoSlides.map(async (slide) => {
-            const extracted = await this.extractFrame({
-                videoUrl: slide.videoUrl,
-                thumbnailUrl: slide.thumbnailUrl || slide.url
-            });
+        const results = new Array(videoSlides.length);
+        let nextIndex = 0;
 
-            return {
-                ...slide,
-                extractedVideoUrl: extracted.videoUrl,
-                extractedThumbnailUrl: extracted.thumbnailUrl
-            };
-        });
+        const processNextSlide = async () => {
+            while (true) {
+                const currentIndex = nextIndex;
+                nextIndex += 1;
 
-        const results = await Promise.all(promises);
+                if (currentIndex >= videoSlides.length) {
+                    return;
+                }
+
+                const slide = videoSlides[currentIndex];
+                const fallbackThumbnailUrl = slide.thumbnailUrl || slide.url || null;
+                const extracted = await this.extractFrame({
+                    videoUrl: slide.videoUrl,
+                    thumbnailUrl: fallbackThumbnailUrl,
+                });
+
+                results[currentIndex] = {
+                    ...slide,
+                    extractedVideoUrl: extracted.videoUrl || slide.videoUrl || null,
+                    extractedThumbnailUrl: extracted.thumbnailUrl || fallbackThumbnailUrl,
+                };
+            }
+        };
+
+        const workerCount = Math.min(this.maxConcurrency, videoSlides.length);
+        await Promise.all(Array.from({ length: workerCount }, () => processNextSlide()));
 
         logger.info(`✓ Extracted ${results.length} frames`);
         return results;
