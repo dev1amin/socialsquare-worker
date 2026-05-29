@@ -12,6 +12,8 @@ Aqui, o PROTAGONISTA é o PRODUTO ou o SISTEMA.
 Pessoas, histórias e exemplos só existem como prova,
 contexto ou alavanca de credibilidade — nunca como centro.
 
+{{> copyOperatingSystem}}
+
 ━━━━━━━━━━━━━━━━━━━━━━
 ESTRUTURA OBRIGATÓRIA DE PRODUTO
 ━━━━━━━━━━━━━━━━━━━━━━

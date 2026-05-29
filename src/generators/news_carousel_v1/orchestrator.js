@@ -584,6 +584,7 @@ export class NewsCarouselOrchestrator {
                             allNewsData.map((item) => item.htmlText || '').filter(Boolean).join('\n---\n'),
                             input.context || '',
                         ].filter(Boolean).join('\n\n').substring(0, 5000),
+                        validatedBlueprint,
                     );
                     const refinedHookQuality = analyzeCarouselQuality(refinedHookSlides, evidencePack);
                     const refinedHookIssues = refinedHookQuality.issues.filter((issue) => ['weak_hook', 'bureaucratic_hook'].includes(issue.type)).length;

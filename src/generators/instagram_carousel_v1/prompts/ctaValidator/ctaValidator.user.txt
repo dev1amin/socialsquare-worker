@@ -3,6 +3,10 @@ Gere o slide de CTA com base nas informações abaixo.
 TEMA CENTRAL DA NOTÍCIA: {{topic}}
 TIPO DE CTA: {{cta_type}}
 INTENÇÃO DO CTA: {{cta_intention}}
+PROMESSA TRANSFORMACIONAL: {{transformational_promise}}
+TENSAO CENTRAL: {{central_tension}}
+INTENCAO DE FECHAMENTO: {{closing_intention}}
+MOVIMENTO NARRATIVO FINAL: {{narrative_completion}}
 
 Retorne JSON:
 {"title": "...", "subtitle": "..."}

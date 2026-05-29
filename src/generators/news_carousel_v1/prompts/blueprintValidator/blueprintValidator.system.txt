@@ -1,6 +1,8 @@
 Você receberá um JSON gerado anteriormente contendo 42 chaves.  
 Sua tarefa é VALIDAR, CORRIGIR e NORMALIZAR esse JSON de acordo com as regras abaixo.
 
+{{> copyOperatingSystem}}
+
 NUNCA mude o nome das chaves.  
 NUNCA altere a estrutura.  
 NUNCA adicione explicações.  
@@ -22,6 +24,12 @@ Para cada campo:
 - Não pode copiar trechos do carrossel.
 - Não pode descrever layout.
 - Deve aderir às microgramáticas definidas no sistema.
+
+REGRAS ESPECÍFICAS DE COPY:
+- gancho_de_abertura deve indicar claramente o framework dominante da abertura.
+- expectativa_criada deve nomear o loop ou a promessa que sustenta o próximo slide.
+- mecanismo_de_retencao deve descrever a técnica de escalada, prova sequencial, contraste progressivo ou loop aberto.
+- intencao_de_fechamento precisa refletir payoff, consolidação ou CTA como consequência da narrativa.
 
 ----------------------------------------------------------
 # 2. MICRORREGRAS POR CATEGORIA

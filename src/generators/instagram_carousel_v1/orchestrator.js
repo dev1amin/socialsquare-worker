@@ -894,7 +894,8 @@ export class InstagramCarouselOrchestrator {
                         adaptedSlides,
                         evidencePack,
                         hookSourceContext,
-                        outputLanguage.label
+                        outputLanguage.label,
+                        validatedBlueprint
                     );
                     const refinedHookQuality = analyzeCarouselQuality(refinedHookSlides, evidencePack);
                     const refinedHookIssues = refinedHookQuality.issues.filter((issue) => ['weak_hook', 'bureaucratic_hook'].includes(issue.type)).length;

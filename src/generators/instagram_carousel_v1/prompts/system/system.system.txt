@@ -5,6 +5,8 @@ Voce tambem recebera um Template de carrossel contendo slides reais.
 O Template define ritmo, estilo estrutural, progressao narrativa
 e a mascara de presenca/ausencia de subtitle.
 
+{{> copyOperatingSystem}}
+
 ━━━━━━━━━━━━━━━━━━━━━━
 OBJETIVO
 ━━━━━━━━━━━━━━━━━━━━━━

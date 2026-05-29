@@ -35,6 +35,11 @@ const CTA_CLAIM_PATTERNS = [
     /\b(?:freebie|ebook|checklist|template gratis|template gratuito|recurso gratuito|material gratuito)\b/i,
 ];
 
+const GENERIC_CTA_PATTERNS = [
+    /\b(?:quer saber mais|saiba mais|me chama|manda mensagem|link na bio|comente abaixo|salva esse carrossel|salve esse post|compartilhe com alguem)\b/i,
+    /^\s*(?:curtiu\?|gostou\?|salva ai|salva esse|compartilha|comenta aqui)\b/i,
+];
+
 const SIGNAL_PATTERNS = {
     number: /(?:\b\d{1,4}(?:[\.,]\d+)?%\b|\b\d{1,4}(?:[\.,]\d+)?\b|R\$\s?\d|US\$\s?\d|\b\d+x\b)/i,
     date: /\b(?:20\d{2}|19\d{2}|jan(?:eiro)?|fev(?:ereiro)?|mar(?:co|ço)?|abr(?:il)?|mai(?:o)?|jun(?:ho)?|jul(?:ho)?|ago(?:sto)?|set(?:embro)?|out(?:ubro)?|nov(?:embro)?|dez(?:embro)?)\b/i,
@@ -126,6 +131,10 @@ function looksLikeNoiseClaim(text) {
 
 export function looksLikeCtaClaim(text) {
     return CTA_CLAIM_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+function looksLikeGenericCta(text) {
+    return GENERIC_CTA_PATTERNS.some((pattern) => pattern.test(text));
 }
 
 function extractProperNouns(text) {
@@ -488,6 +497,11 @@ export function buildEvidencePack({
         'Cada slide precisa acrescentar informacao nova, nao apenas reformular o anterior.',
         'Evite hooks vagos ou frases de efeito sem dado, mecanismo, nome ou consequencia.',
         'Quando existir numero, entidade ou comparacao concreta na fonte, use isso como ancora da copy.',
+        'Slides 2 e 3 devem sustentar o loop aberto; nao entregue toda a resposta cedo demais.',
+        ...(hasCta ? [
+            'O CTA final precisa soar como consequencia da narrativa e recuperar a promessa, tensao ou aprendizado concreto.',
+            'O slide imediatamente anterior ao CTA precisa preparar a acao com prova, clareza ou desejo especifico.',
+        ] : []),
         ...slidePlan.map((item) => item.noveltyGuard),
     ])).slice(0, 8);
 
@@ -495,6 +509,7 @@ export function buildEvidencePack({
 
     return {
         contentType,
+        hasCta,
         blueprintSummary: blueprint?.mensagem_principal || blueprint?.tema_central || null,
         sourceCount: claimSources.length,
         claimCount: claims.length,
@@ -541,6 +556,10 @@ export function formatEvidencePackForPrompt(evidencePack) {
         '- Slide 1 precisa parar o scroll: abrir com risco, perda, ruptura, contraste ou consequencia concreta.',
         '- Sao proibidas aberturas burocraticas no slide 1, como "X revela", "estudo mostra" ou "analise aponta", sem impacto explicito.',
         '- No hook, prefira o pior desdobramento concreto da fonte ao evento neutro que revelou o problema.',
+        ...(evidencePack.hasCta ? [
+            '- O CTA final deve parecer consequencia inevitavel do que veio antes, nao pedido generico solto.',
+            '- Antes do CTA, mantenha o loop e prepare a acao com prova, contraste, desejo ou clareza concreta.',
+        ] : []),
         '- Antes de responder, valide slide a slide se a ancora obrigatoria realmente apareceu no texto final.',
         '',
         'FATOS QUE DEVEM APARECER NA NARRATIVA:',
@@ -649,6 +668,25 @@ export function analyzeCarouselQuality(slides = [], evidencePack = null) {
             score -= 12;
         }
 
+        if (isCta) {
+            const priorAnchors = Array.from(new Set(
+                slideAnchors
+                    .slice(0, index)
+                    .flatMap((anchor) => [...anchor.numeric, ...anchor.proper, ...anchor.keywords])
+                    .filter(Boolean),
+            ));
+            const referencesNarrative = priorAnchors.some((anchor) => slideHasAnchor(current, anchor));
+
+            if (looksLikeGenericCta(current.text) && !referencesNarrative) {
+                issues.push({
+                    type: 'generic_cta',
+                    slide: index + 1,
+                    message: 'CTA final pede acao de forma genérica e nao recupera a tensao, promessa ou tema concreto do carrossel.',
+                });
+                score -= 10;
+            }
+        }
+
         if (!slides[index]?.subtitle && current.text.split(' ').length <= 6 && current.numeric.length === 0 && current.proper.length === 0) {
             issues.push({ type: 'weak_title_only', slide: index + 1, message: 'Slide sem subtitle esta curto demais e nao fecha a ideia.' });
             score -= 10;
@@ -690,7 +728,7 @@ export function analyzeCarouselQuality(slides = [], evidencePack = null) {
 
     return {
         score,
-        passed: score >= 78 && !issues.some((issue) => ['weak_title_only', 'unused_evidence', 'missing_planned_anchor', 'low_specificity', 'weak_hook', 'bureaucratic_hook'].includes(issue.type)),
+        passed: score >= 78 && !issues.some((issue) => ['weak_title_only', 'unused_evidence', 'missing_planned_anchor', 'low_specificity', 'weak_hook', 'bureaucratic_hook', 'generic_cta'].includes(issue.type)),
         issues,
         repairBrief,
     };

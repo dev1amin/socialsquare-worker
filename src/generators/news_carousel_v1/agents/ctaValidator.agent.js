@@ -33,6 +33,10 @@ export class CTAValidatorAgent {
                 topic,
                 cta_type,
                 cta_intention,
+                transformational_promise: blueprint.promessa_transformacional || 'N/A',
+                central_tension: blueprint.tensao_central || 'N/A',
+                closing_intention: blueprint.intencao_de_fechamento || 'N/A',
+                narrative_completion: blueprint.movimento_narrativo_completado || 'N/A',
             });
 
             const completion = await openai.chat.completions.create({

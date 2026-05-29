@@ -10,6 +10,18 @@ FATO-CHAVE PLANEJADO PARA O HOOK:
 ANCORAS OBRIGATORIAS:
 {{required_anchors}}
 
+FRAMEWORK DOMINANTE DA ABERTURA:
+{{opening_framework}}
+
+LOOP OU PROMESSA DA ABERTURA:
+{{opening_expectation}}
+
+DRIVER PSICOLOGICO:
+{{psychological_driver}}
+
+TENSAO CENTRAL:
+{{central_tension}}
+
 CONTEXTO FONTE:
 {{source_context}}
 

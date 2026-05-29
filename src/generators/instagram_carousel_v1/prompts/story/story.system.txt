@@ -23,6 +23,8 @@ Você receberá três insumos:
    contendo exatamente os slides com seu ritmo, progressão
    e máscara obrigatória de subtitles.
 
+{{> copyOperatingSystem}}
+
 ━━━━━━━━━━━━━━━━━━━━━━
 OBJETIVO
 ━━━━━━━━━━━━━━━━━━━━━━

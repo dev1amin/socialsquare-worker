@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { logger } from '../../../config/logger.js';
+import { clearPromptPartialCache, resolvePromptPartials } from '../../shared/utils/promptPartials.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const promptsDir = path.join(__dirname, '../prompts');
@@ -25,9 +26,10 @@ async function loadPromptFile(agentName, type) {
     try {
         const filePath = path.join(promptsDir, agentName, `${agentName}.${type}.txt`);
         const content = await fs.readFile(filePath, 'utf-8');
-        promptCache.set(cacheKey, content.trim());
+        const resolved = await resolvePromptPartials(content.trim());
+        promptCache.set(cacheKey, resolved);
         logger.debug(`Loaded prompt: ${agentName}/${agentName}.${type}.txt`);
-        return content.trim();
+        return resolved;
     } catch (error) {
         logger.error(`Failed to load prompt ${agentName}.${type}: ${error.message}`);
         throw new Error(`Prompt file not found: ${agentName}/${agentName}.${type}.txt`);
@@ -85,6 +87,7 @@ export class PromptLoader {
      */
     static clearCache() {
         promptCache.clear();
+        clearPromptPartialCache();
         logger.debug('Prompt cache cleared');
     }
 }

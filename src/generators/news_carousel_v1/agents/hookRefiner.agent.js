@@ -8,7 +8,7 @@ export class HookRefinerAgent {
         this.tokenTracker = tokenTracker;
     }
 
-    async refine(slides, evidencePack = null, sourceContext = '') {
+    async refine(slides, evidencePack = null, sourceContext = '', blueprint = null) {
         if (!Array.isArray(slides) || slides.length === 0) {
             return slides;
         }
@@ -28,6 +28,10 @@ export class HookRefinerAgent {
                 ? hookPlan.requiredAnchors.join(', ')
                 : 'N/A',
             source_context: sourceContext || 'N/A',
+            opening_framework: blueprint?.gancho_de_abertura || 'N/A',
+            opening_expectation: blueprint?.expectativa_criada || 'N/A',
+            psychological_driver: blueprint?.driver_psicologico || 'N/A',
+            central_tension: blueprint?.tensao_central || 'N/A',
         });
 
         const completion = await openai.chat.completions.create({

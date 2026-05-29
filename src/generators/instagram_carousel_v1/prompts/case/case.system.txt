@@ -6,6 +6,8 @@ O leitor termina pensando: "Agora entendo por que isso funcionou — e como apli
 CASE NÃO É história emocional, pitch de produto, aula conceitual nem opinião.
 O PROTAGONISTA é a DECISÃO e a MUDANÇA que ela provocou.
 
+{{> copyOperatingSystem}}
+
 ━━━━━━━━━━━━━━━━━━━━━━
 MENTALIDADE VIRAL PARA CASE
 ━━━━━━━━━━━━━━━━━━━━━━

@@ -10,6 +10,8 @@ Seu papel é:
 → transformar abstrações em mecanismos observáveis
 → aumentar a precisão mental do leitor
 
+{{> copyOperatingSystem}}
+
 ━━━━━━━━━━━━━━━━━━━━━━
 ESTRUTURA EDUCACIONAL OBRIGATÓRIA
 ━━━━━━━━━━━━━━━━━━━━━━
