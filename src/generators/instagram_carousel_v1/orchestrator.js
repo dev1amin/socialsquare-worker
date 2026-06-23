@@ -32,9 +32,19 @@ import {
     getTavilySearchQuery,
     shouldUseTavilyImageSearch,
 } from '../shared/utils/imageSearchRouting.js';
-import { assertCarouselQualityPassed } from '../shared/utils/qualityGate.js';
 import { resolveOutputLanguage } from '../shared/utils/outputLanguage.js';
 import { expandTemplateSlides } from '../shared/utils/templateExpansion.js';
+import {
+    cloneSlides,
+    mergeCopyIntoDecoratedSlides,
+    shouldAdoptQualityCandidate,
+} from '../shared/utils/qualityGate.js';
+
+function hasSameSlideCount(baseSlides, candidateSlides) {
+    return Array.isArray(baseSlides)
+        && Array.isArray(candidateSlides)
+        && baseSlides.length === candidateSlides.length;
+}
 
 /**
  * Orchestrator para geração de carrossel Instagram
@@ -643,6 +653,9 @@ export class InstagramCarouselOrchestrator {
                 passed: generationQuality.passed,
                 issues: generationQuality.issues.length,
             });
+            let currentCopyQuality = generationQuality;
+            let bestPassingCopyQuality = generationQuality.passed ? generationQuality : null;
+            let bestPassingCopySlides = generationQuality.passed ? cloneSlides(slides) : null;
 
             if (!generationQuality.passed && generationQuality.repairBrief) {
                 logger.warn(`[${this.traceId}] Copy quality below threshold, retrying generation with repair brief`);
@@ -662,9 +675,14 @@ export class InstagramCarouselOrchestrator {
                     issues: retriedQuality.issues.length,
                 });
 
-                if (retriedQuality.score >= generationQuality.score) {
+                if (shouldAdoptQualityCandidate(generationQuality, retriedQuality)) {
                     slides = retriedSlides;
                     generationQuality = retriedQuality;
+                    currentCopyQuality = retriedQuality;
+                    if (retriedQuality.passed && shouldAdoptQualityCandidate(bestPassingCopyQuality, retriedQuality)) {
+                        bestPassingCopyQuality = retriedQuality;
+                        bestPassingCopySlides = cloneSlides(retriedSlides);
+                    }
                 }
             }
 
@@ -687,23 +705,51 @@ export class InstagramCarouselOrchestrator {
             if (_titleOnlyCount > 0) {
                 logger.info(`[${this.traceId}] TitleSquash: re-generating ${_titleOnlyCount} title-only slides...`);
                 try {
-                    processedSlides = await this.titleSquash.squash(slides, _baseMask, {
+                    const squashedSlides = await this.titleSquash.squash(slides, _baseMask, {
                         longTextIndices: _longTextIndices,
                         denseTitleIndices: _denseTitleIndices,
                         rewriteAllTitleOnly: templateName === 'Template 1',
                         sourceContext: [contentForGenerator.text, userContext].filter(Boolean).join('\n\n').substring(0, 5000),
                         outputLanguage: outputLanguage.label,
                     });
-                    logger.info(`[${this.traceId}] TitleSquash: done`);
+                    const squashedQuality = analyzeCarouselQuality(squashedSlides, evidencePack);
+                    if (shouldAdoptQualityCandidate(currentCopyQuality, squashedQuality)) {
+                        processedSlides = squashedSlides;
+                        currentCopyQuality = squashedQuality;
+                        if (squashedQuality.passed && shouldAdoptQualityCandidate(bestPassingCopyQuality, squashedQuality)) {
+                            bestPassingCopyQuality = squashedQuality;
+                            bestPassingCopySlides = cloneSlides(squashedSlides);
+                        }
+                        logger.info(`[${this.traceId}] TitleSquash: accepted`, {
+                            score_before: generationQuality.score,
+                            score_after: squashedQuality.score,
+                            passed_after: squashedQuality.passed,
+                        });
+                    } else {
+                        logger.info(`[${this.traceId}] TitleSquash: kept pre-squash copy`, {
+                            score_before: currentCopyQuality.score,
+                            score_after: squashedQuality.score,
+                            passed_after: squashedQuality.passed,
+                        });
+                    }
                 } catch (err) {
                     logger.warn(`[${this.traceId}] TitleSquash failed, falling back to concat: ${err.message}`);
-                    processedSlides = slides.map((slide, i) => {
+                    const fallbackTitleSlides = slides.map((slide, i) => {
                         if (_baseMask[i]) return slide;
                         if (!slide.subtitle) return slide;
                         const t = (slide.title || '').trim();
                         const sep = /[.!?:;]$/.test(t) ? ' ' : '. ';
                         return { ...slide, title: [t, slide.subtitle.trim()].filter(Boolean).join(sep), subtitle: undefined };
                     });
+                    const fallbackTitleQuality = analyzeCarouselQuality(fallbackTitleSlides, evidencePack);
+                    if (shouldAdoptQualityCandidate(currentCopyQuality, fallbackTitleQuality)) {
+                        processedSlides = fallbackTitleSlides;
+                        currentCopyQuality = fallbackTitleQuality;
+                        if (fallbackTitleQuality.passed && shouldAdoptQualityCandidate(bestPassingCopyQuality, fallbackTitleQuality)) {
+                            bestPassingCopyQuality = fallbackTitleQuality;
+                            bestPassingCopySlides = cloneSlides(fallbackTitleSlides);
+                        }
+                    }
                 }
             }
 
@@ -857,16 +903,30 @@ export class InstagramCarouselOrchestrator {
             if ((userContext || additionalTexts.length > 0) && brandData) {
                 logger.info(`[${this.traceId}] Adapting to brand voice...`);
                 // IMPORTANTE: brandAdapter.adapt espera (slides, brandData, context) como parâmetros separados
-                adaptedSlides = await this.brandAdapter.adapt(
+                const brandAdaptedSlides = await this.brandAdapter.adapt(
                     slidesWithDownloads,
                     brandData,
                     userContext
                 );
-                
-                // Validar que retornou a mesma quantidade de slides
-                if (adaptedSlides.length !== slidesWithDownloads.length) {
-                    logger.warn(`[${this.traceId}] Brand adapter changed slide count: ${slidesWithDownloads.length} -> ${adaptedSlides.length}. Using original slides.`);
-                    adaptedSlides = slidesWithDownloads;
+
+                if (!hasSameSlideCount(slidesWithDownloads, brandAdaptedSlides)) {
+                    logger.warn(`[${this.traceId}] Brand adapter changed slide count: ${slidesWithDownloads.length} -> ${brandAdaptedSlides.length}. Using original slides.`);
+                } else {
+                    const brandAdaptedQuality = analyzeCarouselQuality(brandAdaptedSlides, evidencePack);
+                    if (shouldAdoptQualityCandidate(currentCopyQuality, brandAdaptedQuality)) {
+                        adaptedSlides = brandAdaptedSlides;
+                        currentCopyQuality = brandAdaptedQuality;
+                        if (brandAdaptedQuality.passed && shouldAdoptQualityCandidate(bestPassingCopyQuality, brandAdaptedQuality)) {
+                            bestPassingCopyQuality = brandAdaptedQuality;
+                            bestPassingCopySlides = cloneSlides(brandAdaptedSlides);
+                        }
+                    } else {
+                        logger.info(`[${this.traceId}] Brand adapter kept original copy`, {
+                            score_before: currentCopyQuality.score,
+                            score_after: brandAdaptedQuality.score,
+                            passed_after: brandAdaptedQuality.passed,
+                        });
+                    }
                 }
             } else {
                 logger.info(`[${this.traceId}] Skipping brand adaptation (no context or brand data)`);
@@ -875,16 +935,35 @@ export class InstagramCarouselOrchestrator {
             // ETAPA 14: CTA Validator - valida/adiciona CTA (OPCIONAL - só se has_cta=true)
             if (input.has_cta) {
                 logger.info(`[${this.traceId}] Validating CTA...`);
-                adaptedSlides = await this.ctaValidator.ensureCTA(adaptedSlides, {
+                const ctaSlides = await this.ctaValidator.ensureCTA(adaptedSlides, {
                     ...input,
                     output_language: outputLanguage.code,
                 }, validatedBlueprint);
+                if (hasSameSlideCount(adaptedSlides, ctaSlides)) {
+                    const ctaQuality = analyzeCarouselQuality(ctaSlides, evidencePack);
+                    if (shouldAdoptQualityCandidate(currentCopyQuality, ctaQuality)) {
+                        adaptedSlides = ctaSlides;
+                        currentCopyQuality = ctaQuality;
+                        if (ctaQuality.passed && shouldAdoptQualityCandidate(bestPassingCopyQuality, ctaQuality)) {
+                            bestPassingCopyQuality = ctaQuality;
+                            bestPassingCopySlides = cloneSlides(ctaSlides);
+                        }
+                    } else {
+                        logger.info(`[${this.traceId}] CTA validator kept pre-CTA copy`, {
+                            score_before: currentCopyQuality.score,
+                            score_after: ctaQuality.score,
+                            passed_after: ctaQuality.passed,
+                        });
+                    }
+                } else {
+                    logger.warn(`[${this.traceId}] CTA validator changed slide count: ${adaptedSlides.length} -> ${ctaSlides.length}. Keeping original copy.`);
+                }
             } else {
                 logger.info(`[${this.traceId}] Skipping CTA validation (has_cta=false)`);
             }
 
             if (adaptedSlides.length > 0) {
-                const baselineQuality = analyzeCarouselQuality(adaptedSlides, evidencePack);
+                const baselineQuality = currentCopyQuality;
                 const baselineHookIssues = baselineQuality.issues.filter((issue) => ['weak_hook', 'bureaucratic_hook'].includes(issue.type)).length;
 
                 try {
@@ -908,8 +987,13 @@ export class InstagramCarouselOrchestrator {
                     const refinedHookQuality = analyzeCarouselQuality(refinedHookSlides, evidencePack);
                     const refinedHookIssues = refinedHookQuality.issues.filter((issue) => ['weak_hook', 'bureaucratic_hook'].includes(issue.type)).length;
 
-                    if (refinedHookIssues < baselineHookIssues || refinedHookQuality.score > baselineQuality.score) {
+                    if (hasSameSlideCount(adaptedSlides, refinedHookSlides) && shouldAdoptQualityCandidate(baselineQuality, refinedHookQuality)) {
                         adaptedSlides = refinedHookSlides;
+                        currentCopyQuality = refinedHookQuality;
+                        if (refinedHookQuality.passed && shouldAdoptQualityCandidate(bestPassingCopyQuality, refinedHookQuality)) {
+                            bestPassingCopyQuality = refinedHookQuality;
+                            bestPassingCopySlides = cloneSlides(refinedHookSlides);
+                        }
                         logger.info(`[${this.traceId}] HookRefiner improved slide 1`, {
                             score_before: baselineQuality.score,
                             score_after: refinedHookQuality.score,
@@ -929,15 +1013,36 @@ export class InstagramCarouselOrchestrator {
                 }
             }
 
-            const finalQuality = analyzeCarouselQuality(adaptedSlides, evidencePack);
+            let finalQuality = analyzeCarouselQuality(adaptedSlides, evidencePack);
             logger.info(`[${this.traceId}] Final copy quality ${finalQuality.score}/100`, {
                 passed: finalQuality.passed,
                 issues: finalQuality.issues.length,
             });
 
-            assertCarouselQualityPassed(finalQuality, {
-                stage: 'final_copy',
-            });
+            if (!finalQuality.passed) {
+                if (bestPassingCopySlides && bestPassingCopyQuality?.passed) {
+                    logger.warn(`[${this.traceId}] Final copy degraded after post-processing, restoring best approved copy`, {
+                        final_score: finalQuality.score,
+                        fallback_score: bestPassingCopyQuality.score,
+                        top_issue: finalQuality.issues?.[0]?.type || 'unknown_issue',
+                    });
+                    adaptedSlides = mergeCopyIntoDecoratedSlides(bestPassingCopySlides, adaptedSlides);
+                    finalQuality = analyzeCarouselQuality(adaptedSlides, evidencePack);
+                    currentCopyQuality = finalQuality;
+                    logger.info(`[${this.traceId}] Restored copy quality ${finalQuality.score}/100`, {
+                        passed: finalQuality.passed,
+                        issues: finalQuality.issues.length,
+                    });
+                }
+
+                if (!finalQuality.passed) {
+                    logger.warn(`[${this.traceId}] Final copy quality gate failed, returning degraded result`, {
+                        score: finalQuality.score,
+                        issues: finalQuality.issues.length,
+                        top_issue: finalQuality.issues?.[0]?.type || 'unknown_issue',
+                    });
+                }
+            }
 
             // ETAPA 15: Description Agent - gera descrição final do carrossel
             logger.info(`[${this.traceId}] Generating carousel description...`);
@@ -1075,9 +1180,11 @@ export class InstagramCarouselOrchestrator {
                     generation_score: qualityReport?.generation?.score ?? null,
                     generation_passed: qualityReport?.generation?.passed ?? null,
                     generation_issues: qualityReport?.generation?.issues || [],
+                    generation_repair_brief: qualityReport?.generation?.repairBrief || '',
                     final_score: qualityReport?.final?.score ?? null,
                     final_passed: qualityReport?.final?.passed ?? null,
                     final_issues: qualityReport?.final?.issues || [],
+                    final_repair_brief: qualityReport?.final?.repairBrief || '',
                 }
             }
         };
