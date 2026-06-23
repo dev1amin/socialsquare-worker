@@ -74,11 +74,15 @@ export class RocketAPIClient {
             const slides = rawSlides
                 .map(slide => {
                     // Melhor imagem (maior width)
-                    const bestImage = slide.image_versions2?.candidates?.length
-                        ? slide.image_versions2.candidates.reduce(
-                            (prev, curr) => (curr.width > (prev.width || 0) ? curr : prev),
-                            {},
-                        )
+                    const imageCandidates = slide.image_versions2?.candidates?.length
+                        ? [...slide.image_versions2.candidates]
+                            .sort((a, b) => (b.width || 0) - (a.width || 0))
+                            .map((candidate) => candidate?.url)
+                            .filter(Boolean)
+                        : [];
+
+                    const bestImage = imageCandidates.length
+                        ? { url: imageCandidates[0] }
                         : null;
 
                     // Melhor vídeo (maior height)
@@ -95,7 +99,13 @@ export class RocketAPIClient {
                     const thumbnailUrl = bestImage?.url || null;
                     const url = thumbnailUrl || videoUrl; // Prefere thumbnail, fallback pro vídeo
 
-                    return url ? { url, videoUrl, thumbnailUrl, isVideo } : null;
+                    return url ? {
+                        url,
+                        videoUrl,
+                        thumbnailUrl,
+                        isVideo,
+                        alternativeImageUrls: imageCandidates,
+                    } : null;
                 })
                 .filter(slide => !!slide);
 
@@ -147,7 +157,8 @@ export class RocketAPIClient {
                     type: s.isVideo ? 'video' : 'image',
                     url: s.url,
                     videoUrl: s.videoUrl,
-                    thumbnailUrl: s.thumbnailUrl
+                    thumbnailUrl: s.thumbnailUrl,
+                    alternativeImageUrls: s.alternativeImageUrls || [],
                 }))
             };
 
