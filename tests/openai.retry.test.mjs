@@ -75,3 +75,25 @@ test('isRetryableOpenAIError flags timeout and premature close errors', async ()
     assert.equal(isRetryableOpenAIError(closeError), true);
     assert.equal(isRetryableOpenAIError(new Error('Validation failed')), false);
 });
+
+test('runWithOpenAIRetry marks final transient OpenAI failures as retryable openai-stage errors', async () => {
+    ensureRequiredEnv();
+
+    const { runWithOpenAIRetry } = await loadOpenAIConfig(`retryable-final-${Date.now()}`);
+    const prematureCloseError = new Error(
+        'Invalid response body while trying to fetch https://api.openai.com/v1/chat/completions: Premature close',
+    );
+
+    await assert.rejects(
+        runWithOpenAIRetry('unit-test', async () => {
+            throw prematureCloseError;
+        }, { attempts: 1 }),
+        (error) => {
+            assert.equal(error, prematureCloseError);
+            assert.equal(error.retryable, true);
+            assert.equal(error.stage, 'openai');
+            assert.equal(error.openaiOperation, 'unit-test');
+            return true;
+        },
+    );
+});

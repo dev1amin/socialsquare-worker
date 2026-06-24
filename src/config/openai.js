@@ -1,3 +1,4 @@
+import https from 'node:https';
 import OpenAI from 'openai';
 import { config } from './env.js';
 import { logger } from './logger.js';
@@ -17,6 +18,19 @@ const OPENAI_RETRY_BASE_DELAY_MS = Math.max(
 const OPENAI_RETRY_MAX_DELAY_MS = Math.max(
     OPENAI_RETRY_BASE_DELAY_MS,
     Number.parseInt(process.env.OPENAI_RETRY_MAX_DELAY_MS || '8000', 10) || 8000,
+);
+const OPENAI_FORCE_CONNECTION_CLOSE = process.env.OPENAI_FORCE_CONNECTION_CLOSE !== 'false';
+const OPENAI_DISABLE_RESPONSE_COMPRESSION = process.env.OPENAI_DISABLE_RESPONSE_COMPRESSION !== 'false';
+const OPENAI_HTTP_MAX_SOCKETS = Math.max(
+    1,
+    Number.parseInt(process.env.OPENAI_HTTP_MAX_SOCKETS || '20', 10) || 20,
+);
+const OPENAI_HTTP_SOCKET_TIMEOUT_MS = Math.max(
+    CHAT_COMPLETION_TIMEOUT_MS + 1000,
+    Number.parseInt(
+        process.env.OPENAI_HTTP_SOCKET_TIMEOUT_MS || String(CHAT_COMPLETION_TIMEOUT_MS + 1000),
+        10,
+    ) || (CHAT_COMPLETION_TIMEOUT_MS + 1000),
 );
 const RETRYABLE_STATUS_CODES = new Set([408, 409, 429, 500, 502, 503, 504]);
 const RETRYABLE_ERROR_CODES = new Set([
@@ -38,6 +52,15 @@ const RETRYABLE_ERROR_CODES = new Set([
 
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function hasHeader(headers, name) {
+    if (!headers || typeof headers !== 'object') {
+        return false;
+    }
+
+    const normalized = String(name || '').toLowerCase();
+    return Object.keys(headers).some((key) => key.toLowerCase() === normalized);
 }
 
 function getRetryDelayMs(error, attempt) {
@@ -90,13 +113,35 @@ export function isRetryableOpenAIError(error) {
     );
 }
 
+function annotateOpenAIError(error, operation, stage = 'openai') {
+    if (!error || typeof error !== 'object') {
+        return error;
+    }
+
+    if (!error.stage) {
+        error.stage = stage;
+    }
+
+    if (!error.openaiOperation) {
+        error.openaiOperation = operation;
+    }
+
+    if (isRetryableOpenAIError(error)) {
+        error.retryable = true;
+    }
+
+    return error;
+}
+
 export async function runWithOpenAIRetry(operation, task, options = {}) {
     const attempts = Math.max(1, Number.parseInt(String(options.attempts || CHAT_COMPLETION_ATTEMPTS), 10) || CHAT_COMPLETION_ATTEMPTS);
+    const stage = options.stage || 'openai';
 
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
         try {
             return await task();
         } catch (error) {
+            annotateOpenAIError(error, operation, stage);
             const retryable = isRetryableOpenAIError(error);
             const isLastAttempt = attempt >= attempts;
 
@@ -113,17 +158,45 @@ export async function runWithOpenAIRetry(operation, task, options = {}) {
     throw new Error(`[openai] ${operation} failed without a captured error`);
 }
 
+const openAIHttpsAgent = new https.Agent({
+    keepAlive: !OPENAI_FORCE_CONNECTION_CLOSE,
+    maxSockets: OPENAI_HTTP_MAX_SOCKETS,
+    timeout: OPENAI_HTTP_SOCKET_TIMEOUT_MS,
+});
+
+function buildOpenAIRequestOptions(options = {}) {
+    const headers = {
+        ...(options.headers || {}),
+    };
+
+    if (OPENAI_DISABLE_RESPONSE_COMPRESSION && !hasHeader(headers, 'accept-encoding')) {
+        headers['accept-encoding'] = 'identity';
+    }
+
+    if (OPENAI_FORCE_CONNECTION_CLOSE && !hasHeader(headers, 'connection')) {
+        headers.connection = 'close';
+    }
+
+    return {
+        ...options,
+        headers,
+        httpAgent: options.httpAgent || openAIHttpsAgent,
+    };
+}
+
 const rawOpenAI = new OpenAI({
     apiKey: config.openai.apiKey,
     maxRetries: 0,
     timeout: CHAT_COMPLETION_TIMEOUT_MS,
+    httpAgent: openAIHttpsAgent,
 });
 
 const originalCreateChatCompletion = rawOpenAI.chat.completions.create.bind(rawOpenAI.chat.completions);
 
 rawOpenAI.chat.completions.create = async (body, options) => runWithOpenAIRetry(
     `chat.completions.create (${body?.model || 'unknown-model'})`,
-    () => originalCreateChatCompletion(body, options),
+    () => originalCreateChatCompletion(body, buildOpenAIRequestOptions(options)),
+    { stage: 'openai' },
 );
 
 export const openai = rawOpenAI;

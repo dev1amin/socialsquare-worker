@@ -9,7 +9,7 @@ import { cacheService } from '../services/cache.service.js';
 import { tempfs } from '../services/tempfs.service.js';
 import { createTokenTracker } from '../services/tokenTracker.service.js';
 import { flushTokenTracker } from '../services/pricingTracker.service.js';
-import { isRetryableError } from './utils/backoff.js';
+import { isRetryableError, shouldPersistJobFailure } from './utils/backoff.js';
 
 const connection = createRedisConnection();
 
@@ -97,13 +97,26 @@ const processJob = async (job) => {
 
         const stage = error.stage || 'unknown';
         const retryable = error.retryable !== undefined ? error.retryable : isRetryableError(error);
+        const currentAttempt = job.attemptsMade + 1;
+        const shouldPersistFailure = shouldPersistJobFailure({
+            retryable,
+            attemptsMade: job.attemptsMade,
+            maxAttempts: config.queue.attempts,
+        });
 
-        // Se esgotou tentativas ou erro não é recuperável, marca como failed
-        if (!retryable || job.attemptsMade >= config.queue.attempts) {
+        logger.warn(
+            `Job ${job_id} failed on attempt ${currentAttempt}/${config.queue.attempts} `
+            + `(stage: ${stage}, retryable: ${retryable}, persistFailure: ${shouldPersistFailure})`,
+        );
+
+        // Só persiste como failed quando não houver mais retry útil.
+        if (shouldPersistFailure) {
             if (jobData) {
                 await failJob(job_id, error.message, stage, retryable);
                 await cacheService.invalidateAll(job_id, jobData.user_id, jobData.business_id);
             }
+        } else {
+            logger.info(`Job ${job_id} will be retried by BullMQ after transient failure`);
         }
 
         throw error; // BullMQ vai fazer retry se configurado

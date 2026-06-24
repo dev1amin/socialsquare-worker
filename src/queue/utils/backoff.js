@@ -13,13 +13,34 @@ export const isRetryableError = (error) => {
     const retryablePatterns = [
         /timeout/i,
         /ECONNREFUSED/i,
+        /ECONNRESET/i,
         /ETIMEDOUT/i,
         /network/i,
         /rate limit/i,
+        /premature close/i,
+        /fetch failed/i,
+        /socket hang up/i,
+        /service unavailable/i,
+        /temporarily unavailable/i,
+        /connection reset/i,
     ];
 
-    const errorMessage = error.message || error.toString();
+    if (error?.retryable === true) {
+        return true;
+    }
+
+    const errorMessage = error?.message || error?.toString?.() || '';
     return retryablePatterns.some((pattern) => pattern.test(errorMessage));
+};
+
+/**
+ * Decide se a falha atual já deve ser persistida como definitiva no banco.
+ * `attemptsMade` é zero-based no BullMQ, então somamos 1 para obter a tentativa atual.
+ */
+export const shouldPersistJobFailure = ({ retryable, attemptsMade, maxAttempts }) => {
+    const currentAttempt = Math.max(0, Number.parseInt(String(attemptsMade ?? 0), 10) || 0) + 1;
+    const totalAttempts = Math.max(1, Number.parseInt(String(maxAttempts ?? 1), 10) || 1);
+    return !retryable || currentAttempt >= totalAttempts;
 };
 
 /**
